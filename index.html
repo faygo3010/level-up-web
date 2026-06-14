@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Level Up &mdash; AI Life Progress Tracker</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0a;--bg2:#111;--bg3:#181818;--bg4:#1e1e1e;
+  --accent:#ffffff;--accent2:#cccccc;--accent3:#999999;
+  --text:#fff;--text2:#888;--text3:#555;
+  --border:#222;--border2:#2e2e2e;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overflow-x:hidden;line-height:1.6}
+/* ── NAV ─────────────────────────────────────────── */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:1000;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 48px;
+  background:rgba(10,10,10,0.85);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--border);
+}
+.logo{font-size:18px;font-weight:900;letter-spacing:-0.5px}
+.logo span{color:var(--accent)}
+.nav-right{display:flex;align-items:center;gap:12px}
+.badge{
+  font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--text2);padding:4px 10px;
+  border:1px solid var(--border2);border-radius:20px;
+  background:rgba(255,255,255,0.04);
+}
+/* ── BUTTONS ─────────────────────────────────────── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:14px 26px;border-radius:12px;
+  font-size:14px;font-weight:700;text-decoration:none;
+  cursor:pointer;border:none;outline:none;
+  position:relative;overflow:hidden;
+  transition:transform 0.15s,box-shadow 0.15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.btn:active{transform:scale(0.95)!important}
+/* Liquid button */
+.btn-primary{background:#fff;color:#000;box-shadow:0 0 28px rgba(255,255,255,0.12)}
+.btn-primary::after{
+  content:'';position:absolute;bottom:-110%;left:-10%;right:-10%;
+  padding-bottom:120%;border-radius:50%;
+  background:rgba(0,0,0,0.12);
+  transition:bottom 0.4s cubic-bezier(.4,0,.2,1);
+}
+.btn-primary:hover::after{bottom:-10%}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 12px 36px rgba(255,255,255,0.2)}
+.btn-sm{padding:10px 18px;font-size:13px;border-radius:10px}
+/* Outline button */
+.btn-outline{background:transparent;color:var(--text);border:1px solid var(--border2)}
+.btn-outline:hover{border-color:#fff;background:rgba(255,255,255,0.06);transform:translateY(-2px)}
+/* Ripple */
+.ripple-el{
+  position:absolute;border-radius:50%;
+  background:rgba(255,255,255,0.25);
+  pointer-events:none;transform:scale(0);
+  animation:ripple 0.65s ease-out forwards;
+}
+@keyframes ripple{to{transform:scale(4.5);opacity:0}}
+/* ── HERO ────────────────────────────────────────── */
+.hero{
+  position:relative;min-height:100vh;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  text-align:center;padding:110px 24px 80px;
+  overflow:hidden;
+}
+#hex-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.hero-glow{
+  position:absolute;top:-10%;left:50%;transform:translateX(-50%);
+  width:900px;height:700px;pointer-events:none;
+  background:radial-gradient(ellipse at center,rgba(255,255,255,0.05) 0%,transparent 65%);
+}
+.hero-glow2{
+  position:absolute;bottom:-10%;right:-10%;width:500px;height:500px;
+  pointer-events:none;
+  background:radial-gradient(ellipse at center,rgba(255,255,255,0.03) 0%,transparent 65%);
+}
+.eyebrow{
+  position:relative;z-index:1;
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:11px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;
+  color:var(--text2);margin-bottom:28px;
+  padding:6px 14px;border:1px solid var(--border2);
+  border-radius:20px;background:rgba(255,255,255,0.04);
+}
+.live-dot{
+  width:7px;height:7px;border-radius:50%;background:#fff;
+  animation:pulseDot 2s ease-in-out infinite;
+}
+@keyframes pulseDot{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(255,255,255,0.4)}50%{opacity:0.5;box-shadow:0 0 0 4px rgba(255,255,255,0)}}
+h1{
+  position:relative;z-index:1;
+  font-size:clamp(42px,7.5vw,92px);font-weight:900;
+  letter-spacing:-3px;line-height:1.0;
+  margin-bottom:24px;max-width:950px;
+}
+.grad{
+  background:linear-gradient(135deg,#ffffff 0%,#aaaaaa 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.hero-sub{
+  position:relative;z-index:1;
+  font-size:clamp(16px,2.2vw,19px);color:var(--text2);
+  max-width:500px;margin-bottom:40px;line-height:1.8;
+}
+.hero-btns{
+  position:relative;z-index:1;
+  display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-bottom:52px;
+}
+/* Avatar group */
+.avatar-group{
+  position:relative;z-index:1;
+  display:inline-flex;align-items:center;gap:14px;margin-bottom:56px;
+}
+.avatars{display:flex;align-items:center;padding-right:4px}
+.av{
+  width:34px;height:34px;border-radius:50%;
+  border:2px solid var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:800;color:#fff;
+  margin-left:-9px;cursor:default;
+  position:relative;z-index:1;
+  transition:transform 0.22s cubic-bezier(.34,1.56,.64,1),z-index 0s 0.22s;
+}
+.av:first-child{margin-left:0}
+.avatars:hover .av{transform:translateX(3px)}
+.avatars:hover .av:hover{transform:translateY(-8px) scale(1.2);z-index:10;transition-delay:0s}
+.ag-text{font-size:13px;color:var(--text2)}
+.ag-text strong{color:var(--text)}
+/* Progress card */
+.pcard{
+  position:relative;z-index:1;
+  width:100%;max-width:460px;margin:0 auto;
+  background:rgba(17,17,17,0.9);
+  border:1px solid var(--border2);
+  border-radius:20px;padding:24px;
+  box-shadow:0 32px 80px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.06);
+  backdrop-filter:blur(8px);
+}
+.pcard-header{
+  display:flex;align-items:center;gap:8px;margin-bottom:20px;
+  padding-bottom:14px;border-bottom:1px solid var(--border);
+}
+.wdot{width:11px;height:11px;border-radius:50%}
+.pcard-title{font-size:12px;color:var(--text3);margin-left:6px;font-weight:500}
+.prow{margin-bottom:16px}
+.prow:last-child{margin-bottom:0}
+.plbl{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}
+.plbl-name{font-size:13px;font-weight:600}
+.plbl-pct{font-size:12px;color:#fff;font-weight:700;font-variant-numeric:tabular-nums}
+.ptrk{height:5px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden}
+.pfill{
+  height:100%;border-radius:3px;width:0;
+  background:#fff;
+  transition:width 1.5s cubic-bezier(.4,0,.2,1);
+}
+/* ── STATS BAR ────────────────────────────────────── */
+.stats-strip{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:1px;background:var(--border);
+  border-top:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+}
+.stat-cell{
+  background:var(--bg2);padding:44px 28px;text-align:center;
+}
+.stat-n{
+  font-size:52px;font-weight:900;letter-spacing:-2.5px;
+  color:#fff;line-height:1;margin-bottom:10px;
+  font-variant-numeric:tabular-nums;
+}
+.stat-n.text-n{font-size:28px;letter-spacing:-1px}
+.stat-l{font-size:13px;color:var(--text2);font-weight:500}
+/* ── SECTION BASE ─────────────────────────────────── */
+.wrap{max-width:1100px;margin:0 auto;padding:0 24px}
+.section{padding:100px 0}
+.sec-tag{
+  font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+  color:var(--accent);margin-bottom:14px;text-align:center;
+}
+.sec-h2{
+  font-size:clamp(28px,4vw,48px);font-weight:900;letter-spacing:-1.5px;
+  text-align:center;margin-bottom:60px;
+}
+/* ── TABS ─────────────────────────────────────────── */
+.tabs-wrap{max-width:860px;margin:0 auto}
+.tabs-list{
+  display:flex;gap:4px;padding:4px;
+  background:var(--bg2);border:1px solid var(--border2);
+  border-radius:14px;margin-bottom:28px;overflow-x:auto;
+  scrollbar-width:none;
+}
+.tabs-list::-webkit-scrollbar{display:none}
+.tab-btn{
+  flex:1;min-width:80px;padding:10px 18px;
+  font-size:13px;font-weight:600;color:var(--text2);
+  border:none;background:transparent;
+  border-radius:10px;cursor:pointer;
+  transition:all 0.2s;white-space:nowrap;
+}
+.tab-btn.active{background:#fff;color:#000}
+.tab-btn:not(.active):hover{background:var(--bg3);color:var(--text)}
+.tab-panel{display:none;animation:fadeUp 0.28s ease}
+.tab-panel.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.mock{
+  background:var(--bg2);border:1px solid var(--border2);
+  border-radius:20px;padding:32px;min-height:300px;
+}
+.mock-hdr{font-size:22px;font-weight:900;letter-spacing:-0.5px;margin-bottom:6px}
+.mock-sub{font-size:13px;color:var(--text2);margin-bottom:24px}
+.gcard{
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:12px;padding:16px;margin-bottom:10px;
+}
+.gcard:last-child{margin-bottom:0}
+.grow{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.gname{font-size:14px;font-weight:600}
+.gpct{font-size:12px;color:#fff;font-weight:700}
+.gtrk{height:5px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden}
+.gfill{height:100%;border-radius:3px;background:#fff}
+.chat-msg{display:flex;gap:10px;margin-bottom:14px}
+.chat-msg.u{flex-direction:row-reverse}
+.bubble{max-width:72%;padding:10px 14px;border-radius:14px;font-size:13px;line-height:1.65}
+.bubble.ai{background:var(--bg3);border-bottom-left-radius:4px}
+.bubble.u{background:#fff;color:#000;border-bottom-right-radius:4px}
+.insight-tag{
+  margin-top:16px;padding:12px 16px;
+  background:rgba(255,255,255,0.04);border:1px solid var(--border2);
+  border-radius:10px;font-size:13px;color:var(--text2);
+}
+/* ── FEATURE GRID ─────────────────────────────────── */
+.feat-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;
+}
+.feat-card{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:20px;padding:28px;
+  transition:border-color 0.2s,transform 0.25s,box-shadow 0.25s;
+  cursor:default;
+}
+.feat-card:hover{
+  border-color:rgba(255,255,255,0.25);
+  transform:translateY(-6px);
+  box-shadow:0 24px 56px rgba(0,0,0,0.5);
+}
+.feat-icon{
+  width:48px;height:48px;border-radius:14px;
+  background:rgba(255,255,255,0.07);
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;margin-bottom:18px;
+}
+.feat-h{font-size:17px;font-weight:700;margin-bottom:10px}
+.feat-p{font-size:14px;color:var(--text2);line-height:1.75}
+/* ── ACCORDION ────────────────────────────────────── */
+.acc-wrap{max-width:700px;margin:0 auto}
+.acc-item{border-bottom:1px solid var(--border)}
+.acc-trigger{
+  width:100%;display:flex;align-items:center;justify-content:space-between;
+  padding:22px 0;font-size:15px;font-weight:600;
+  background:transparent;border:none;color:var(--text);
+  cursor:pointer;text-align:left;gap:16px;
+}
+.acc-trigger:hover .acc-q{color:#fff;opacity:0.7}
+.acc-q{transition:color 0.2s}
+.acc-icon{
+  flex-shrink:0;width:22px;height:22px;border-radius:50%;
+  border:1.5px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--text2);transition:transform 0.3s ease,border-color 0.2s,background 0.2s;
+}
+.acc-item.open .acc-icon{transform:rotate(45deg);border-color:rgba(255,255,255,0.4);background:rgba(255,255,255,0.08);color:#fff}
+.acc-content{overflow:hidden;max-height:0;transition:max-height 0.38s cubic-bezier(.4,0,.2,1)}
+.acc-inner{font-size:14px;color:var(--text2);line-height:1.85;padding-bottom:22px}
+/* ── HOW IT WORKS ─────────────────────────────────── */
+.steps-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0;position:relative}
+.steps-grid::before{
+  content:'';position:absolute;top:28px;left:16.66%;right:16.66%;
+  height:1px;background:linear-gradient(90deg,transparent,var(--border2),transparent);
+}
+.step-item{padding:0 28px 0;text-align:center}
+.step-num{
+  width:56px;height:56px;border-radius:16px;
+  background:var(--bg2);border:1px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;font-weight:900;color:#fff;
+  margin:0 auto 20px;
+}
+.step-h{font-size:17px;font-weight:700;margin-bottom:10px}
+.step-p{font-size:14px;color:var(--text2);line-height:1.75}
+/* ── CTA ──────────────────────────────────────────── */
+.cta-section{
+  text-align:center;padding:100px 24px 120px;position:relative;overflow:hidden;
+}
+.cta-glow{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:700px;height:500px;pointer-events:none;
+  background:radial-gradient(ellipse,rgba(255,255,255,0.04) 0%,transparent 65%);
+}
+.cta-tag{
+  display:inline-block;font-size:11px;font-weight:700;letter-spacing:1.8px;
+  text-transform:uppercase;color:var(--text2);margin-bottom:20px;
+}
+.cta-h{
+  font-size:clamp(32px,5vw,58px);font-weight:900;
+  letter-spacing:-2px;margin-bottom:20px;
+}
+.cta-p{font-size:16px;color:var(--text2);max-width:420px;margin:0 auto 40px;line-height:1.75}
+.cta-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+/* ── FOOTER ───────────────────────────────────────── */
+footer{
+  border-top:1px solid var(--border);padding:32px 48px;
+  display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:16px;
+}
+.f-logo{font-size:16px;font-weight:900}
+.f-logo span{color:var(--accent)}
+footer p{font-size:13px;color:var(--text3)}
+footer a{color:var(--text2);text-decoration:none;font-size:13px;transition:color 0.15s}
+footer a:hover{color:#fff}
+/* ── REVEAL ───────────────────────────────────────── */
+.reveal{opacity:0;transform:translateY(36px);transition:opacity 0.65s ease,transform 0.65s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.reveal-d1{transition-delay:0.1s}
+.reveal-d2{transition-delay:0.2s}
+.reveal-d3{transition-delay:0.3s}
+/* ── DIVIDER ──────────────────────────────────────── */
+.divider{
+  height:1px;background:linear-gradient(90deg,transparent,var(--border2),transparent);
+  max-width:800px;margin:0 auto;
+}
+@media(max-width:900px){
+  .stats-strip{grid-template-columns:repeat(2,1fr)}
+  .steps-grid::before{display:none}
+}
+@media(max-width:640px){
+  nav{padding:16px 20px}
+  .wrap{padding:0 20px}
+  .section{padding:64px 0}
+  footer{padding:28px 20px;flex-direction:column;align-items:flex-start}
+  .hero-btns{flex-direction:column;width:100%;align-items:stretch}
+  .hero-btns .btn{text-align:center}
+  .stats-strip{grid-template-columns:repeat(2,1fr)}
+  .cta-btns{flex-direction:column;align-items:center}
+  h1{letter-spacing:-1.5px}
+}
+</style>
+</head>
+<body>
+<!-- NAV -->
+<nav>
+  <div class="logo">Level Up</div>
+  <div class="nav-right">
+    <span class="badge">Open Source</span>
+    <a href="#cta" class="btn btn-primary btn-sm">Get started</a>
+  </div>
+</nav>
+<!-- HERO -->
+<section class="hero">
+  <canvas id="hex-canvas"></canvas>
+  <div class="hero-glow"></div>
+  <div class="hero-glow2"></div>
+  <div class="eyebrow"><div class="live-dot"></div>Now available &mdash; iOS, Android &amp; Web</div>
+  <h1>Your life, but<br>with a <span class="grad">loading bar.</span></h1>
+  <p class="hero-sub">
+    Set goals. Track progress daily. Get honest AI feedback that treats you like an adult &mdash;
+    no exclamation marks, no motivational posters.
+  </p>
+  <div class="hero-btns">
+    <a href="https://levelup-web-app.onrender.com" class="btn btn-primary" target="_blank">Get the mobile app</a>
+    <a href="#features" class="btn btn-outline">See how it works</a>
+  </div>
+  <div class="avatar-group">
+    <div class="avatars">
+      <div class="av" style="background:#2a2a2a;border-color:#444">JD</div>
+      <div class="av" style="background:#333;border-color:#444">SM</div>
+      <div class="av" style="background:#222;border-color:#444">AK</div>
+      <div class="av" style="background:#2e2e2e;border-color:#444">MT</div>
+      <div class="av" style="background:#1e1e1e;border-color:#444">LC</div>
+      <div class="av" style="background:#111;border-color:#444;color:#888">+</div>
+    </div>
+    <span class="ag-text"><strong>500+</strong> people tracking goals this week</span>
+  </div>
+  <div class="pcard" id="hero-card">
+    <div class="pcard-header">
+      <div class="wdot" style="background:#ff5f57"></div>
+      <div class="wdot" style="background:#ffbd2e"></div>
+      <div class="wdot" style="background:#28c840"></div>
+      <span class="pcard-title">Today &mdash; May 16</span>
+    </div>
+    <div class="prow"><div class="plbl"><span class="plbl-name">Run 4x per week</span><span class="plbl-pct">72%</span></div><div class="ptrk"><div class="pfill" data-w="72%"></div></div></div>
+    <div class="prow"><div class="plbl"><span class="plbl-name">Read 20 min daily</span><span class="plbl-pct">45%</span></div><div class="ptrk"><div class="pfill" data-w="45%"></div></div></div>
+    <div class="prow"><div class="plbl"><span class="plbl-name">Ship side project</span><span class="plbl-pct">88%</span></div><div class="ptrk"><div class="pfill" data-w="88%"></div></div></div>
+    <div class="prow"><div class="plbl"><span class="plbl-name">Sleep 8hrs avg</span><span class="plbl-pct">60%</span></div><div class="ptrk"><div class="pfill" data-w="60%"></div></div></div>
+  </div>
+</section>
+<!-- STATS -->
+<div class="stats-strip" id="stats">
+  <div class="stat-cell"><div class="stat-n" data-target="16" data-from="0">0</div><div class="stat-l">App screens</div></div>
+  <div class="stat-cell"><div class="stat-n" data-target="5" data-from="0">0</div><div class="stat-l">Goal timeframes</div></div>
+  <div class="stat-cell"><div class="stat-n text-n">Claude</div><div class="stat-l">AI engine</div></div>
+  <div class="stat-cell"><div class="stat-n" data-target="0" data-from="99">99</div><div class="stat-l">Exclamation marks</div></div>
+</div>
+<!-- FEATURES TABS -->
+<div class="wrap section reveal" id="features">
+  <div class="sec-tag">The app</div>
+  <h2 class="sec-h2">Four screens. All signal, no noise.</h2>
+  <div class="tabs-wrap">
+    <div class="tabs-list">
+      <button class="tab-btn active" data-tab="today">Today</button>
+      <button class="tab-btn" data-tab="goals">Goals</button>
+      <button class="tab-btn" data-tab="chat">Chat</button>
+      <button class="tab-btn" data-tab="insights">Insights</button>
+    </div>
+    <div class="tab-panel active" id="tab-today">
+      <div class="mock">
+        <div class="mock-hdr">Good morning.</div>
+        <div class="mock-sub">3 of 4 goals on track today.</div>
+        <div class="gcard"><div class="grow"><span class="gname">Run 4x per week</span><span class="gpct">72%</span></div><div class="gtrk"><div class="gfill" style="width:72%"></div></div></div>
+        <div class="gcard"><div class="grow"><span class="gname">Read 20 min daily</span><span class="gpct">45%</span></div><div class="gtrk"><div class="gfill" style="width:45%"></div></div></div>
+        <div class="gcard"><div class="grow"><span class="gname">Ship side project</span><span class="gpct">88%</span></div><div class="gtrk"><div class="gfill" style="width:88%"></div></div></div>
+        <div class="gcard" style="border-color:rgba(255,255,255,0.06)"><div class="grow"><span class="gname">Sleep 8hrs avg</span><span class="gpct" style="color:#666">60%</span></div><div class="gtrk"><div class="gfill" style="width:60%;background:#555"></div></div></div>
+      </div>
+    </div>
+    <div class="tab-panel" id="tab-goals">
+      <div class="mock">
+        <div class="mock-hdr">Goals</div>
+        <div class="mock-sub">5 active &mdash; across daily, weekly &amp; monthly</div>
+        <div class="gcard"><div class="grow"><span class="gname">&#128337; Run 4x per week</span><span class="gpct" style="color:var(--text2);font-weight:500;font-size:11px">Weekly</span></div><div class="gtrk"><div class="gfill" style="width:72%"></div></div></div>
+        <div class="gcard"><div class="grow"><span class="gname">&#128214; Read 20 min daily</span><span class="gpct" style="color:var(--text2);font-weight:500;font-size:11px">Daily</span></div><div class="gtrk"><div class="gfill" style="width:45%"></div></div></div>
+        <div class="gcard"><div class="grow"><span class="gname">&#128187; Ship side project</span><span class="gpct" style="color:var(--text2);font-weight:500;font-size:11px">Monthly</span></div><div class="gtrk"><div class="gfill" style="width:88%"></div></div></div>
+        <div class="gcard"><div class="grow"><span class="gname">&#128170; 10k steps daily</span><span class="gpct" style="color:var(--text2);font-weight:500;font-size:11px">Daily</span></div><div class="gtrk"><div class="gfill" style="width:65%"></div></div></div>
+      </div>
+    </div>
+    <div class="tab-panel" id="tab-chat">
+      <div class="mock">
+        <div class="mock-hdr">Chat</div>
+        <div style="margin-bottom:20px"></div>
+        <div class="chat-msg"><div class="bubble ai">You ran twice this week. Three sessions needed by Sunday. What's blocking the third?</div></div>
+        <div class="chat-msg u"><div class="bubble u">Work's been crazy. I'll go tomorrow morning.</div></div>
+        <div class="chat-msg"><div class="bubble ai">Noted. That keeps you on track. I'll check in Sunday.</div></div>
+        <div class="chat-msg u"><div class="bubble u">How's my reading goal?</div></div>
+        <div class="chat-msg"><div class="bubble ai">45% through the week. 11 more minutes today to hit your daily average.</div></div>
+      </div>
+    </div>
+    <div class="tab-panel" id="tab-insights">
+      <div class="mock">
+        <div class="mock-hdr">Insights</div>
+        <div class="mock-sub">Based on your last 30 days</div>
+        <div class="gcard"><div class="grow"><span class="gname">Current streak</span><span class="gpct">14 days</span></div><div class="gtrk"><div class="gfill" style="width:90%"></div></div></div>
+        <div class="gcard"><div class="grow"><span class="gname">Best streak ever</span><span class="gpct">21 days</span></div><div class="gtrk"><div class="gfill" style="width:100%"></div></div></div>
+        <div class="gcard"><div class="grow"><span class="gname">Goals hit this month</span><span class="gpct">78%</span></div><div class="gtrk"><div class="gfill" style="width:78%"></div></div></div>
+        <div class="insight-tag">&#128200; You perform 40% better on goals logged before 9am.</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="divider" style="margin:0 auto"></div>
+<!-- HOW IT WORKS -->
+<div class="wrap section reveal">
+  <div class="sec-tag">How it works</div>
+  <h2 class="sec-h2">Up and running in 3 steps</h2>
+  <div class="steps-grid">
+    <div class="step-item reveal reveal-d1">
+      <div class="step-num">01</div>
+      <div class="step-h">Tell it your goals</div>
+      <p class="step-p">Open the chat and describe what you want to track. Daily runs, a side project, reading more &mdash; anything with a measurable outcome.</p>
+    </div>
+    <div class="step-item reveal reveal-d2">
+      <div class="step-num">02</div>
+      <div class="step-h">Log your progress</div>
+      <p class="step-p">Each day, tap the check-in notification and sync with the AI. It references your step count, calendar, and past conversations.</p>
+    </div>
+    <div class="step-item reveal reveal-d3">
+      <div class="step-num">03</div>
+      <div class="step-h">Watch the bars fill</div>
+      <p class="step-p">Your Today screen shows every active goal with a live progress bar. Green means on track. That simple.</p>
+    </div>
+  </div>
+</div>
+<div class="divider"></div>
+<!-- FEATURES GRID -->
+<div class="wrap section reveal">
+  <div class="sec-tag">Features</div>
+  <h2 class="sec-h2">Built for people who actually follow through</h2>
+  <div class="feat-grid">
+    <div class="feat-card reveal reveal-d1">
+      <div class="feat-icon">&#127919;</div>
+      <div class="feat-h">Honest AI</div>
+      <p class="feat-p">No "You've got this!" No exclamation marks. Just: "Two sessions this week. Need two more by Sunday."</p>
+    </div>
+    <div class="feat-card reveal reveal-d2">
+      <div class="feat-icon">&#128200;</div>
+      <div class="feat-h">Progress bars for life</div>
+      <p class="feat-p">Every goal has a bar. Daily, weekly, monthly, yearly, lifetime. You always know where you stand.</p>
+    </div>
+    <div class="feat-card reveal reveal-d3">
+      <div class="feat-icon">&#128274;</div>
+      <div class="feat-h">Fully private</div>
+      <p class="feat-p">No account. No cloud sync. Your data lives on your phone. Export as JSON whenever you want.</p>
+    </div>
+    <div class="feat-card reveal reveal-d1">
+      <div class="feat-icon">&#128241;</div>
+      <div class="feat-h">iOS, Android &amp; Web</div>
+      <p class="feat-p">One codebase, three platforms. Built with Expo &mdash; works on whatever you have in your pocket.</p>
+    </div>
+    <div class="feat-card reveal reveal-d2">
+      <div class="feat-icon">&#128276;</div>
+      <div class="feat-h">Daily check-ins</div>
+      <p class="feat-p">Set a time. Get a notification. The AI knows what you did yesterday and picks up where you left off.</p>
+    </div>
+    <div class="feat-card reveal reveal-d3">
+      <div class="feat-icon">&#9889;</div>
+      <div class="feat-h">Streaks &amp; patterns</div>
+      <p class="feat-p">The insights screen shows your best streaks and tells you when you perform well &mdash; based on your actual data.</p>
+    </div>
+  </div>
+</div>
+<div class="divider"></div>
+<!-- FAQ ACCORDION -->
+<div class="wrap section reveal">
+  <div class="sec-tag">FAQ</div>
+  <h2 class="sec-h2">Common questions</h2>
+  <div class="acc-wrap">
+    <div class="acc-item">
+      <button class="acc-trigger"><span class="acc-q">Do I need to create an account?</span><div class="acc-icon"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg></div></button>
+      <div class="acc-content"><div class="acc-inner">No account required. There is no sign-up, no email, no password. The app runs entirely on your device. Everything is stored in local storage and never leaves your phone unless you choose to export it.</div></div>
+    </div>
+    <div class="acc-item">
+      <button class="acc-trigger"><span class="acc-q">How does the AI know my progress?</span><div class="acc-icon"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg></div></button>
+      <div class="acc-content"><div class="acc-inner">During each chat the app sends your current goal states, recent progress data, and (with permission) device data like step count to the AI. The AI uses this to give contextual, specific responses instead of generic advice.</div></div>
+    </div>
+    <div class="acc-item">
+      <button class="acc-trigger"><span class="acc-q">Does this cost money?</span><div class="acc-icon"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg></div></button>
+      <div class="acc-content"><div class="acc-inner">The app is free and open source. You bring your own Anthropic API key for the AI chat feature. The key is stored locally on your device and used directly &mdash; we do not proxy your requests through any server.</div></div>
+    </div>
+    <div class="acc-item">
+      <button class="acc-trigger"><span class="acc-q">How do I get it on my phone?</span><div class="acc-icon"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg></div></button>
+      <div class="acc-content"><div class="acc-inner">Download Expo Go from the App Store or Google Play, then scan the QR code from the GitHub repo. You will be running the app in under 60 seconds. No App Store approval needed.</div></div>
+    </div>
+    <div class="acc-item">
+      <button class="acc-trigger"><span class="acc-q">What data does it collect?</span><div class="acc-icon"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg></div></button>
+      <div class="acc-content"><div class="acc-inner">Nothing. No analytics, no crash reporting, no telemetry. With permission the app can read your step count and calendar &mdash; but that data never leaves your device. The only external call is to the Anthropic API when you open a chat.</div></div>
+    </div>
+  </div>
+</div>
+<!-- CTA -->
+<section class="cta-section reveal" id="cta">
+  <div class="cta-glow"></div>
+  <div class="cta-tag">Open source</div>
+  <h2 class="cta-h">Start leveling up today.</h2>
+  <p class="cta-p">Private by default. No accounts. No exclamation marks. Just a loading bar for your life.</p>
+  <div class="cta-btns">
+    <a href="https://levelup-web-app.onrender.com" class="btn btn-primary" target="_blank">Get the mobile app</a>
+    <a href="https://github.com/faygo3010/level-up-web" class="btn btn-outline" target="_blank">View source on GitHub</a>
+  </div>
+</section>
+<footer>
+  <div class="f-logo">Level Up</div>
+  <p>Built with Expo &amp; Claude AI</p>
+  <div style="display:flex;gap:20px">
+    <a href="https://levelup-web-app.onrender.com" target="_blank">Mobile App</a>
+    <a href="https://github.com/faygo3010/level-up-web" target="_blank">Source</a>
+  </div>
+</footer>
+<script>
+// ── HEXAGON CANVAS ────────────────────────────────────────────────────
+(function(){
+  var C = document.getElementById('hex-canvas');
+  var ctx = C.getContext('2d');
+  var mouse = {x:-9999, y:-9999};
+  var hexes = [];
+  var S = 32, GAP = 3;
+  var W = S * 2, H = Math.sqrt(3) * S;
+  function resize(){
+    C.width = C.offsetWidth;
+    C.height = C.offsetHeight;
+    hexes = [];
+    var cols = Math.ceil(C.width / (W * 0.75)) + 2;
+    var rows = Math.ceil(C.height / H) + 2;
+    for(var c = 0; c < cols; c++){
+      for(var r = 0; r < rows; r++){
+        hexes.push({
+          x: c * W * 0.75,
+          y: r * H + (c % 2 ? H / 2 : 0),
+          a: 0
+        });
+      }
+    }
+  }
+  function hexPath(x, y){
+    ctx.beginPath();
+    for(var i = 0; i < 6; i++){
+      var a = Math.PI / 3 * i - Math.PI / 6;
+      var px = x + (S - GAP) * Math.cos(a);
+      var py = y + (S - GAP) * Math.sin(a);
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+  }
+  function frame(){
+    ctx.clearRect(0, 0, C.width, C.height);
+    for(var i = 0; i < hexes.length; i++){
+      var h = hexes[i];
+      var dx = h.x - mouse.x, dy = h.y - mouse.y;
+      var d = Math.sqrt(dx*dx + dy*dy);
+      var tgt = d < 130 ? (1 - d / 130) * 0.55 : 0;
+      h.a += (tgt - h.a) * 0.1;
+      if(h.a < 0.006) continue;
+      hexPath(h.x, h.y);
+      ctx.fillStyle = 'rgba(255,255,255,' + h.a + ')';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,' + (h.a * 0.4) + ')';
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    }
+    requestAnimationFrame(frame);
+  }
+  window.addEventListener('resize', function(){ resize(); });
+  C.parentElement.addEventListener('mousemove', function(e){
+    var r = C.getBoundingClientRect();
+    mouse.x = e.clientX - r.left;
+    mouse.y = e.clientY - r.top;
+  });
+  C.parentElement.addEventListener('mouseleave', function(){ mouse.x=-9999; mouse.y=-9999; });
+  resize(); frame();
+})();
+// ── PROGRESS BARS ─────────────────────────────────────────────────────
+(function(){
+  var fills = document.querySelectorAll('.pfill');
+  var started = false;
+  var obs = new IntersectionObserver(function(entries){
+    if(started) return;
+    if(entries[0].isIntersecting){ started=true; fills.forEach(function(f){ f.style.width=f.dataset.w; }); }
+  }, {threshold:0.25});
+  var card = document.getElementById('hero-card');
+  if(card) obs.observe(card);
+  // fallback
+  setTimeout(function(){ if(!started){ started=true; fills.forEach(function(f){ f.style.width=f.dataset.w; }); } }, 700);
+})();
+// ── RIPPLE ON BUTTONS ─────────────────────────────────────────────────
+document.querySelectorAll('.btn').forEach(function(btn){
+  btn.addEventListener('click', function(e){
+    var r = this.getBoundingClientRect();
+    var size = Math.max(r.width, r.height) * 2.2;
+    var el = document.createElement('span');
+    el.className = 'ripple-el';
+    el.style.cssText = [
+      'width:'+size+'px','height:'+size+'px',
+      'left:'+(e.clientX-r.left-size/2)+'px',
+      'top:'+(e.clientY-r.top-size/2)+'px'
+    ].join(';');
+    this.appendChild(el);
+    setTimeout(function(){ el.remove(); }, 750);
+  });
+});
+// ── TABS ──────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+    document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+    this.classList.add('active');
+    var p = document.getElementById('tab-'+this.dataset.tab);
+    if(p) p.classList.add('active');
+  });
+});
+// ── ACCORDION ─────────────────────────────────────────────────────────
+document.querySelectorAll('.acc-trigger').forEach(function(t){
+  t.addEventListener('click', function(){
+    var item = this.parentElement;
+    var content = item.querySelector('.acc-content');
+    var isOpen = item.classList.contains('open');
+    document.querySelectorAll('.acc-item').forEach(function(i){
+      i.classList.remove('open');
+      i.querySelector('.acc-content').style.maxHeight = '0';
+    });
+    if(!isOpen){
+      item.classList.add('open');
+      content.style.maxHeight = content.scrollHeight + 32 + 'px';
+    }
+  });
+});
+// ── COUNTER ANIMATION ─────────────────────────────────────────────────
+(function(){
+  var els = document.querySelectorAll('.stat-n[data-target]');
+  var done = false;
+  var obs = new IntersectionObserver(function(entries){
+    if(done || !entries.some(function(e){ return e.isIntersecting; })) return;
+    done = true; obs.disconnect();
+    els.forEach(function(el){
+      var target = +el.dataset.target;
+      var from = +(el.dataset.from || 0);
+      var t0 = performance.now(), dur = 1400;
+      (function tick(now){
+        var p = Math.min(1, (now - t0) / dur);
+        var e = 1 - Math.pow(1 - p, 3);
+        el.textContent = Math.round(from + (target - from) * e);
+        if(p < 1) requestAnimationFrame(tick);
+      })(t0);
+    });
+  }, {threshold:0.3});
+  document.querySelectorAll('.stat-cell').forEach(function(el){ obs.observe(el); });
+})();
+// ── SCROLL REVEAL ─────────────────────────────────────────────────────
+(function(){
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting) e.target.classList.add('visible');
+    });
+  }, {threshold:0.08, rootMargin:'0px 0px -40px 0px'});
+  document.querySelectorAll('.reveal').forEach(function(el){ obs.observe(el); });
+})();
+</script>
+</body>
+</html>

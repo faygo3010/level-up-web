@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: levelup-landing
+    runtime: static
+    # Repo root that contains index.html. If you push this `site` folder
+    # as the repo root, leave staticPublishPath as "."
+    staticPublishPath: .
+    pullRequestPreviewsEnabled: true
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=3600
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
