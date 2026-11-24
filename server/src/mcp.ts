@@ -1,0 +1,110 @@
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js'
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
+import { randomUUID } from 'node:crypto'
+import { starterState } from '../../app/src/core/defaults'
+import { todayIn } from '../../app/src/core/dates'
+import { SCOPES } from './oauth/provider'
+import type { Stores } from './stores/types'
+import { TOOLS, ToolError, type ToolDef } from './tools'
+
+const MAX_ATTEMPTS = 3
+/** Matches the activity_log.summary length check in the database. */
+const MAX_SUMMARY = 500
+
+export interface Caller {
+  readonly userId: string
+  readonly clientId: string
+  readonly clientName: string
+  readonly scopes: readonly string[]
+}
+
+export function callerFrom(auth: AuthInfo, clientName: string): Caller {
+  const userId = auth.extra?.userId
+  if (typeof userId !== 'string') throw new Error('Token has no user')
+  return { userId, clientId: auth.clientId, clientName, scopes: auth.scopes }
+}
+
+const text = (t: string, isError = false): CallToolResult => ({ content: [{ type: 'text', text: t }], ...(isError && { isError }) })
+
+/**
+ * Run one tool against the caller's data: load, apply, save with optimistic
+ * concurrency (retrying if the app or another chat wrote at the same moment),
+ * then record what changed in the activity history.
+ */
+export async function runTool(
+  tool: ToolDef,
+  args: unknown,
+  caller: Caller,
+  stores: Pick<Stores, 'state' | 'activity'>,
+  now: () => number = Date.now,
+): Promise<CallToolResult> {
+  if (tool.access === 'write' && !caller.scopes.includes(SCOPES.write)) {
+    return text('This connection is read-only. Reconnect Level Up and allow changes to use this.', true)
+  }
+  const parsed = tool.schema.safeParse(args)
+  if (!parsed.success) return text(`Invalid input: ${parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}`, true)
+
+  const repo = stores.state.forUser(caller.userId)
+  try {
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      const doc = await repo.pull()
+      const at = now()
+      const state = doc?.state ?? starterState(todayIn(undefined, new Date(at)))
+      const ctx = { today: todayIn(state.settings.timeZone, new Date(at)), now: at, newId: randomUUID }
+      const result = tool.run(state, parsed.data, ctx)
+      if (!result.state) return text(result.text)
+
+      const pushed = await repo.push(result.state, doc?.version ?? null)
+      if (!pushed.ok) continue
+      await stores.activity
+        .add({
+          userId: caller.userId,
+          clientId: caller.clientId,
+          clientName: caller.clientName,
+          tool: tool.name,
+          summary: (result.summary ?? tool.title).slice(0, MAX_SUMMARY),
+          at,
+        })
+        // The change itself is saved; report (without user data) that history missed it.
+        .catch((e: unknown) => console.error(`[activity] failed to record ${tool.name}:`, e instanceof Error ? e.message : 'unknown'))
+      return text(result.text)
+    }
+    return text('Level Up was busy saving another change. Please try again.', true)
+  } catch (e) {
+    if (e instanceof ToolError) return text(e.message, true)
+    console.error(`[tool ${tool.name}] failed`, e)
+    return text('Something went wrong on the Level Up server. Nothing was changed.', true)
+  }
+}
+
+const INSTRUCTIONS = `Level Up holds the user's personal operating system: life areas (e.g. Work, Fitness, Trading, Finance), each with routines (scheduled habits), playbook rules (kept/broken each day) and goals (progress bars), plus a journal of trades, workouts, money and notes.
+Call get_today when the user asks what to do or how their day is going, and get_system before editing their setup so you use the right ids.
+When the user tells you they did something, record it (complete_routine, check_rule, log_goal_progress, add_journal_entry).
+Be direct and specific, without hype. Confirm before archiving or deleting anything.`
+
+/** A fresh MCP server per request (stateless), exposing only the tools this caller may use. */
+export function buildMcpServer(caller: Caller, stores: Pick<Stores, 'state' | 'activity'>, now?: () => number): McpServer {
+  const server = new McpServer({ name: 'level-up', title: 'Level Up', version: '0.1.0' }, { instructions: INSTRUCTIONS })
+  const canWrite = caller.scopes.includes(SCOPES.write)
+  for (const tool of TOOLS) {
+    if (tool.access === 'write' && !canWrite) continue
+    server.registerTool(
+      tool.name,
+      {
+        title: tool.title,
+        description: tool.description,
+        inputSchema: tool.input,
+        annotations: {
+          title: tool.title,
+          readOnlyHint: tool.access === 'read',
+          destructiveHint: tool.destructive ?? false,
+          idempotentHint: tool.access === 'read',
+          openWorldHint: false,
+        },
+      },
+      (args: unknown) => runTool(tool, args, caller, stores, now),
+    )
+  }
+  return server
+}

@@ -851,3 +851,40 @@ h2 {
   opacity: 0.55;
   cursor: default;
 }
+
+/* ── AI apps ─────────────────────────────────────── */
+.copy-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.url {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.mini-head {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+.activity {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.activity li {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}

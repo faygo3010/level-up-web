@@ -46,6 +46,12 @@ export function StoreProvider({ children, initial }: { children: ReactNode; init
     if (kv) setSaveFailed(!saveState(kv, state))
   }, [kv, state])
 
+  // Remember this device's time zone so connected AI apps know your "today".
+  const zone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
+  useEffect(() => {
+    if (zone && state.settings.timeZone !== zone) dispatch({ type: 'updateSettings', settings: { timeZone: zone } })
+  }, [zone, state.settings.timeZone])
+
   const value = useMemo(() => ({ state, dispatch, today, saveFailed }), [state, today, saveFailed])
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
 }

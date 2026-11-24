@@ -100,6 +100,8 @@ export interface Settings {
   /** Day score (0-1) needed to count a day towards your streak. */
   readonly streakThreshold: number
   readonly weekStartsOn: 0 | 1
+  /** IANA time zone, so connected AI apps know what "today" means for you. */
+  readonly timeZone?: string
 }
 
 export interface AppState {

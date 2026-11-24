@@ -1,4 +1,4 @@
-import { addDays, dateRange, periodRange, toDateKey, weekdayOf, monthKey } from '../dates'
+import { addDays, dateRange, periodRange, toDateKey, todayIn, weekdayOf, monthKey } from '../dates'
 
 describe('dates', () => {
   it('formats a local date as YYYY-MM-DD with zero padding', () => {
@@ -51,5 +51,18 @@ describe('dates', () => {
     it('yearly covers the calendar year', () => {
       expect(periodRange('2026-06-10', 'yearly', 1)).toEqual({ start: '2026-01-01', end: '2026-12-31' })
     })
+  })
+})
+
+describe('todayIn', () => {
+  const instant = new Date('2026-11-24T23:30:00Z')
+  it('returns the calendar date in a given time zone', () => {
+    expect(todayIn('Europe/London', instant)).toBe('2026-11-24')
+    expect(todayIn('Asia/Tokyo', instant)).toBe('2026-11-25')
+    expect(todayIn('America/Los_Angeles', instant)).toBe('2026-11-24')
+  })
+  it('falls back to UTC for a missing or invalid zone', () => {
+    expect(todayIn(undefined, instant)).toBe('2026-11-24')
+    expect(todayIn('Not/AZone', instant)).toBe('2026-11-24')
   })
 })

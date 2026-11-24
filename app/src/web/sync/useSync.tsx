@@ -11,7 +11,8 @@ import { getSupabase, supabaseRepo, SyncError } from './supabaseRepo'
 const META_KEY = 'levelup:sync'
 const OWNER_KEY = 'levelup:owner'
 const PUSH_DELAY_MS = 2000
-const POLL_MS = 5 * 60 * 1000
+/** Pull often while the app is open so changes made from an AI chat show up quickly. */
+const POLL_MS = 60 * 1000
 
 export type SyncStatus = 'off' | 'signedOut' | 'idle' | 'syncing' | 'error'
 
@@ -25,6 +26,8 @@ interface SyncApi {
   verifyCode(email: string, code: string): Promise<string | null>
   signOut(): Promise<void>
   syncNow(): void
+  /** Current app session token, for calling the connector's API. */
+  getAccessToken(): Promise<string | null>
 }
 
 const SyncContext = createContext<SyncApi | null>(null)
@@ -147,7 +150,7 @@ export function SyncProvider({ children, supabase = getSupabase() }: { children:
     void run()
     const onVisible = () => document.visibilityState === 'visible' && void run()
     document.addEventListener('visibilitychange', onVisible)
-    const id = window.setInterval(run, POLL_MS)
+    const id = window.setInterval(() => document.visibilityState === 'visible' && void run(), POLL_MS)
     return () => {
       document.removeEventListener('visibilitychange', onVisible)
       window.clearInterval(id)
@@ -185,6 +188,10 @@ export function SyncProvider({ children, supabase = getSupabase() }: { children:
         setError(null)
       },
       syncNow: () => void run(),
+      async getAccessToken() {
+        const { data } = (await supabase?.auth.getSession()) ?? { data: { session: null } }
+        return data.session?.access_token ?? null
+      },
     }
   }, [supabase, userId, session, syncing, error, lastSynced, run])
 

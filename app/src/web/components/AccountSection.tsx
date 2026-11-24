@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useSync } from '../sync/useSync'
+import { AiConnections } from './AiConnections'
 import { Field, Section } from './ui'
 
 function syncedLabel(at: number | null): string {
@@ -77,7 +78,32 @@ function SignIn() {
   )
 }
 
+const CONNECTOR_URL = import.meta.env.VITE_CONNECTOR_URL as string | undefined
+
+function AiAppsSection() {
+  const sync = useSync()
+  if (!CONNECTOR_URL) return null
+  return (
+    <Section title="AI apps">
+      {sync.status === 'signedOut' ? (
+        <p className="muted small">Sign in above to connect Claude, ChatGPT or another AI app to your Level Up.</p>
+      ) : (
+        <AiConnections connectorUrl={CONNECTOR_URL} getToken={sync.getAccessToken} onRefresh={sync.syncNow} />
+      )}
+    </Section>
+  )
+}
+
 export function AccountSection() {
+  return (
+    <>
+      <AccountCard />
+      <AiAppsSection />
+    </>
+  )
+}
+
+function AccountCard() {
   const sync = useSync()
 
   if (!sync.configured) {

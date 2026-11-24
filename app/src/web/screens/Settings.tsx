@@ -8,6 +8,17 @@ import { useStore } from '../store'
 
 const MAX_IMPORT_BYTES = 10 * 1024 * 1024
 
+/** Read a file as text; FileReader fallback covers older mobile browsers. */
+function readText(file: File): Promise<string> {
+  if (typeof file.text === 'function') return file.text()
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result ?? ''))
+    reader.onerror = () => reject(reader.error)
+    reader.readAsText(file)
+  })
+}
+
 function download(filename: string, contents: string) {
   const url = URL.createObjectURL(new Blob([contents], { type: 'application/json' }))
   const a = document.createElement('a')
@@ -30,7 +41,13 @@ export function Settings() {
     e.target.value = ''
     if (!file) return
     if (file.size > MAX_IMPORT_BYTES) return setMessage('That file is too large to be a Level Up backup.')
-    const result = parseState(await file.text())
+    let text: string
+    try {
+      text = await readText(file)
+    } catch {
+      return setMessage("Couldn't read that file.")
+    }
+    const result = parseState(text)
     if (!result.ok) return setMessage(result.error)
     setPending(result.state)
     setMessage('Backup checked. Tap "Replace all data" to restore it.')

@@ -7,6 +7,17 @@ export function toDateKey(date: Date): DateKey {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
+/** Calendar date right now in an IANA time zone (e.g. "Europe/London"); UTC if unknown. */
+export function todayIn(timeZone: string | undefined, now: Date = new Date()): DateKey {
+  const format = (tz: string) =>
+    new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
+  try {
+    return format(timeZone ?? 'UTC')
+  } catch {
+    return format('UTC')
+  }
+}
+
 export function today(): DateKey {
   return toDateKey(new Date())
 }

@@ -1,20 +1,11 @@
 import { useState } from 'react'
 import { areaAdherence } from '../../core/adherence'
+import { describeDays } from '../../core/format'
 import type { Area, Goal, Routine, Rule } from '../../core/types'
 import { AreaForm, GoalForm, RoutineForm, RuleForm } from '../components/forms'
 import { GoalRow } from '../components/GoalRow'
 import { Empty, ProgressBar, Section, pct } from '../components/ui'
 import { useAreas, useStore } from '../store'
-
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
-
-export function describeDays(days: readonly number[]): string {
-  if (days.length === 7) return 'Every day'
-  const set = new Set(days)
-  if (days.length === 5 && [1, 2, 3, 4, 5].every((d) => set.has(d))) return 'Weekdays'
-  if (days.length === 2 && set.has(0) && set.has(6)) return 'Weekends'
-  return [1, 2, 3, 4, 5, 6, 0].filter((d) => set.has(d)).map((d) => DAY_NAMES[d]).join(', ')
-}
 
 type Editing =
   | { kind: 'area'; area?: Area }

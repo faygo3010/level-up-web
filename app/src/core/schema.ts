@@ -64,6 +64,7 @@ const settings = z.object({
   currency: z.string().min(1).max(4),
   streakThreshold: z.number().min(0).max(1),
   weekStartsOn: z.union([z.literal(0), z.literal(1)]),
+  timeZone: z.string().max(64).optional(),
 })
 
 export const appStateSchema = z.object({

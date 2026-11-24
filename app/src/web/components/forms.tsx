@@ -6,6 +6,7 @@ import { useStore } from '../store'
 import { Field, Sheet } from './ui'
 
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'] as const
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const
 const DAY_ORDER: Weekday[] = [1, 2, 3, 4, 5, 6, 0]
 
 const clean = (s: string, max = 200): string => s.trim().slice(0, max)
@@ -137,6 +138,7 @@ export function RoutineForm({ areaId, routine, onClose }: { areaId: string; rout
               type="button"
               className={days.includes(d) ? 'on' : ''}
               aria-pressed={days.includes(d)}
+              aria-label={DAY_NAMES[d]}
               onClick={() => toggleDay(d)}
             >
               {DAY_LABELS[d]}
