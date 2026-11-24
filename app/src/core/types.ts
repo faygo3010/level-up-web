@@ -115,4 +115,6 @@ export interface AppState {
   /** date -> ruleId -> kept (true) or broken (false); missing = not reviewed */
   readonly ruleChecks: Readonly<Record<DateKey, Readonly<Record<string, boolean>>>>
   readonly settings: Settings
+  /** First day you used the system. Earlier days count as no data, not misses. */
+  readonly startedOn?: DateKey
 }

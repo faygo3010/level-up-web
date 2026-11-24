@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { GoalStatus } from '../../core/progress'
 
 export function ProgressBar({ ratio, color, status }: { ratio: number; color?: string; status?: GoalStatus }) {
@@ -78,4 +78,44 @@ export function money(amount: number, currency: string): string {
   const sign = amount < 0 ? '-' : ''
   const abs = Math.abs(amount)
   return `${sign}${currency}${abs.toLocaleString('en-GB', { maximumFractionDigits: 2 })}`
+}
+
+/**
+ * Two-tap confirm for destructive actions. Works everywhere, including
+ * embedded viewers where window.confirm() is blocked.
+ */
+export function ConfirmButton({
+  label,
+  confirmLabel,
+  onConfirm,
+  className = 'btn ghost danger',
+  ariaLabel,
+}: {
+  label: ReactNode
+  confirmLabel: string
+  onConfirm: () => void
+  className?: string
+  ariaLabel?: string
+}) {
+  const [armed, setArmed] = useState(false)
+  useEffect(() => {
+    if (!armed) return
+    const id = window.setTimeout(() => setArmed(false), 3000)
+    return () => window.clearTimeout(id)
+  }, [armed])
+
+  return (
+    <button
+      type="button"
+      className={`${className} ${armed ? 'armed' : ''}`}
+      aria-label={armed ? confirmLabel : ariaLabel}
+      onClick={() => {
+        if (!armed) return setArmed(true)
+        setArmed(false)
+        onConfirm()
+      }}
+    >
+      {armed ? confirmLabel : label}
+    </button>
+  )
 }

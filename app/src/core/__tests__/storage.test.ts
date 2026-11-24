@@ -25,6 +25,10 @@ describe('storage', () => {
 })
 
 describe('starterState', () => {
+  it('records the start date', () => {
+    expect(starterState('2026-11-24').startedOn).toBe('2026-11-24')
+  })
+
   it('seeds the four core areas with a starter system', () => {
     const s = starterState('2026-11-24')
     expect(s.areas.map((a) => a.name)).toEqual(['Work', 'Fitness', 'Trading', 'Finance'])

@@ -1,7 +1,8 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import { emptyState, starterState } from '../../core/defaults'
 import { parseState, serializeState } from '../../core/storage'
-import { Field, Section } from '../components/ui'
+import type { AppState } from '../../core/types'
+import { ConfirmButton, Field, Section } from '../components/ui'
 import { useStore } from '../store'
 
 const MAX_IMPORT_BYTES = 10 * 1024 * 1024
@@ -21,6 +22,8 @@ export function Settings() {
   const [message, setMessage] = useState('')
   const { settings } = state
 
+  const [pending, setPending] = useState<AppState | null>(null)
+
   const onImport = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ''
@@ -28,16 +31,23 @@ export function Settings() {
     if (file.size > MAX_IMPORT_BYTES) return setMessage('That file is too large to be a Level Up backup.')
     const result = parseState(await file.text())
     if (!result.ok) return setMessage(result.error)
-    if (!window.confirm('Replace everything in the app with this backup?')) return
-    dispatch({ type: 'replace', state: result.state })
-    setMessage('Backup restored.')
+    setPending(result.state)
+    setMessage('Backup checked. Tap "Replace all data" to restore it.')
   }
 
-  const reset = (starter: boolean) => {
-    const prompt = starter ? 'Replace everything with the starter system?' : 'Delete everything? Export a backup first if unsure.'
-    if (!window.confirm(prompt)) return
-    dispatch({ type: 'replace', state: starter ? starterState(today) : emptyState() })
-    setMessage(starter ? 'Starter system loaded.' : 'All data cleared.')
+  const replace = (next: AppState, note: string) => {
+    dispatch({ type: 'replace', state: next })
+    setPending(null)
+    setMessage(note)
+  }
+
+  const copyBackup = async () => {
+    try {
+      await navigator.clipboard.writeText(serializeState(state))
+      setMessage('Backup copied. Paste it into a note or file to keep it.')
+    } catch {
+      setMessage("Couldn't copy here. Use Export backup instead.")
+    }
   }
 
   return (
@@ -89,16 +99,23 @@ export function Settings() {
           <button className="btn" onClick={() => download(`levelup-backup-${today}.json`, serializeState(state))}>
             Export backup (JSON)
           </button>
+          <button className="btn" onClick={copyBackup}>
+            Copy backup to clipboard
+          </button>
           <button className="btn" onClick={() => fileRef.current?.click()}>
             Import backup
           </button>
           <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={onImport} data-testid="import" />
-          <button className="btn ghost" onClick={() => reset(true)}>
-            Load starter system
-          </button>
-          <button className="btn ghost danger" onClick={() => reset(false)}>
-            Delete all data
-          </button>
+          {pending && (
+            <ConfirmButton label="Replace all data" confirmLabel="Tap again to replace" onConfirm={() => replace(pending, 'Backup restored.')} />
+          )}
+          <ConfirmButton
+            className="btn ghost"
+            label="Load starter system"
+            confirmLabel="Tap again: replaces everything"
+            onConfirm={() => replace(starterState(today), 'Starter system loaded.')}
+          />
+          <ConfirmButton label="Delete all data" confirmLabel="Tap again to delete everything" onConfirm={() => replace({ ...emptyState(), startedOn: today }, 'All data cleared.')} />
         </div>
         {message && <p className="muted" role="status">{message}</p>}
       </Section>

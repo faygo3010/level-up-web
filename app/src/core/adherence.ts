@@ -20,6 +20,7 @@ export function scheduledRoutines(state: AppState, date: DateKey, areaId?: strin
  * plus playbook rules marked as kept, over everything that was expected.
  */
 export function dayScore(state: AppState, date: DateKey, areaId?: string): DayScore {
+  if (state.startedOn !== undefined && date < state.startedOn) return { done: 0, total: 0, score: null }
   const routines = scheduledRoutines(state, date, areaId)
   const completed = new Set(state.completions[date] ?? [])
   const rules = state.rules.filter((r) => !r.archived && (areaId === undefined || r.areaId === areaId))
@@ -46,6 +47,7 @@ export function currentStreak(state: AppState, on: DateKey): number {
     const result = passes(state, date)
     if (result === false) break
     if (result === true) streak++
+    if (state.startedOn !== undefined && date < state.startedOn) break
     if (result === null && !hasAnyActivityBefore(state, date)) break
   }
   return streak

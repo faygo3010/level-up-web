@@ -77,4 +77,5 @@ export const appStateSchema = z.object({
   completions: z.record(dateKey, z.array(id)),
   ruleChecks: z.record(dateKey, z.record(id, z.boolean())),
   settings: settings.default(DEFAULT_SETTINGS),
+  startedOn: dateKey.optional(),
 })

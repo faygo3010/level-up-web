@@ -1,3 +1,4 @@
+import { withUnit } from '../format'
 import { moneySummary, tradeStats, workoutSummary } from '../stats'
 import type { LogEntry } from '../types'
 
@@ -54,5 +55,13 @@ describe('workoutSummary', () => {
   it('counts sessions and minutes in a range', () => {
     const w: LogEntry = { ...base, id: 'w', date: '2026-11-20', kind: 'workout', workout: { activity: 'run', minutes: 30 } }
     expect(workoutSummary([w, { ...w, id: 'w2', date: '2026-01-01' }], '2026-11-01', '2026-11-30')).toEqual({ sessions: 1, minutes: 30 })
+  })
+})
+
+describe('withUnit', () => {
+  it('prefixes currency symbols and suffixes words', () => {
+    expect(withUnit(400, '£')).toBe('£400')
+    expect(withUnit(2.5, 'hours')).toBe('2.5 hours')
+    expect(withUnit(3, '')).toBe('3')
   })
 })

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { goalProgress, type GoalProgress } from '../../core/progress'
 import { newId } from '../../core/ids'
+import { withUnit } from '../../core/format'
 import type { Goal } from '../../core/types'
 import { useStore } from '../store'
 import { ProgressBar } from './ui'
@@ -17,11 +18,11 @@ const fmt = (n: number): string => (Number.isInteger(n) ? String(n) : n.toFixed(
 export function describeProgress(goal: Goal, p: GoalProgress): string {
   const period = PERIOD_LABEL[goal.period]
   if (goal.direction === 'atMost') {
-    if (p.status === 'over') return `Over by ${fmt(p.current - p.target)} ${goal.unit} ${period}.`
-    return `${fmt(p.remaining)} ${goal.unit} left ${period}.`
+    if (p.status === 'over') return `Over by ${withUnit(p.current - p.target, goal.unit)} ${period}.`
+    return `${withUnit(p.remaining, goal.unit)} left ${period}.`
   }
   if (p.status === 'done') return `Done ${period}.`
-  return `${fmt(p.remaining)} ${goal.unit} to go ${period}.`
+  return `${withUnit(p.remaining, goal.unit)} to go ${period}.`
 }
 
 export function GoalRow({ goal, color }: { goal: Goal; color: string }) {
@@ -45,7 +46,7 @@ export function GoalRow({ goal, color }: { goal: Goal; color: string }) {
       <div className="goal-top">
         <span className="goal-title">{goal.title}</span>
         <span className="goal-num">
-          {fmt(progress.current)}/{fmt(goal.target)} {goal.unit}
+          {fmt(progress.current)} / {withUnit(goal.target, goal.unit)}
         </span>
       </div>
       <ProgressBar ratio={progress.ratio} color={color} status={progress.status} />

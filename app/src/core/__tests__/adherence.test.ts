@@ -84,6 +84,15 @@ describe('streaks', () => {
   })
 })
 
+describe('start date', () => {
+  it('treats days before you started as no data, not failures', () => {
+    const state = stateWith({ startedOn: TUE, routines: [routine({ id: 'a' })] })
+    expect(dayScore(state, '2026-11-23').score).toBeNull()
+    expect(dayScore(state, TUE).score).toBe(0)
+    expect(areaAdherence({ ...state, completions: { [TUE]: ['a'] } }, 'fitness', TUE, 30)).toBe(1)
+  })
+})
+
 describe('history and area adherence', () => {
   const state = stateWith({
     routines: [routine({ id: 'a', areaId: 'fitness' })],

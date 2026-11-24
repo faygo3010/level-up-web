@@ -53,9 +53,10 @@ const goal = (
  * A starter system across the four core areas. Everything is editable; it
  * exists so the first screen isn't empty and shows how the pieces fit.
  */
-export function starterState(_today: DateKey): AppState {
+export function starterState(today: DateKey): AppState {
   return {
     ...emptyState(),
+    startedOn: today,
     areas: [
       area('work', 'Work', '💼', '#7dd3fc'),
       area('fitness', 'Fitness', '🏋️', '#86efac'),

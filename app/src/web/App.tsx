@@ -10,7 +10,7 @@ const TABS = [
   { key: 'areas', label: 'Areas', icon: '▦', Screen: Areas },
   { key: 'journal', label: 'Journal', icon: '✎', Screen: Journal },
   { key: 'insights', label: 'Insights', icon: '▲', Screen: Insights },
-  { key: 'settings', label: 'Settings', icon: '⚙', Screen: Settings },
+  { key: 'prefs', label: 'Settings', icon: '⚙', Screen: Settings },
 ] as const
 
 type TabKey = (typeof TABS)[number]['key']

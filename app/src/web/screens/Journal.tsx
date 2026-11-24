@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { formatDay } from '../../core/dates'
 import type { LogEntry, LogKind } from '../../core/types'
 import { LogForm } from '../components/LogForm'
-import { Dot, Empty, money } from '../components/ui'
+import { ConfirmButton, Dot, Empty, money } from '../components/ui'
 import { useAreas, useStore } from '../store'
 
 type Filter = 'all' | LogKind
@@ -62,10 +62,6 @@ export function Journal() {
     }, [])
   }, [state.logs, filter])
 
-  const remove = (entry: LogEntry) => {
-    if (window.confirm('Delete this entry?')) dispatch({ type: 'removeLog', id: entry.id })
-  }
-
   return (
     <div className="screen">
       <header className="hero-head row-between">
@@ -99,9 +95,13 @@ export function Journal() {
                   <span className="log-head">
                     <Headline entry={e} currency={state.settings.currency} />
                   </span>
-                  <button className="icon-btn" onClick={() => remove(e)} aria-label="Delete entry">
-                    ✕
-                  </button>
+                  <ConfirmButton
+                    className="icon-btn"
+                    label="✕"
+                    ariaLabel="Delete entry"
+                    confirmLabel="Delete?"
+                    onConfirm={() => dispatch({ type: 'removeLog', id: e.id })}
+                  />
                 </div>
                 {e.text && <p className="log-text">{e.text}</p>}
                 {area && (
