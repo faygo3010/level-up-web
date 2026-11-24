@@ -1,9 +1,14 @@
+import { CheckboxList, CheckboxListItem } from '@astryxdesign/core/CheckboxList'
+import { Divider } from '@astryxdesign/core/Divider'
+import { ProgressBar } from '@astryxdesign/core/ProgressBar'
+import { Token } from '@astryxdesign/core/Token'
+import { VStack } from '@astryxdesign/core/VStack'
 import { currentStreak, dayScore, scheduledRoutines } from '../../core/adherence'
 import { formatDay } from '../../core/dates'
-import type { Routine, TimeOfDay } from '../../core/types'
+import type { TimeOfDay } from '../../core/types'
 import { GoalRow } from '../components/GoalRow'
 import { RuleCheck } from '../components/RuleCheck'
-import { Dot, Empty, ProgressBar, Section } from '../components/ui'
+import { Empty, PageHeader, Section, areaTone } from '../components/ui'
 import { useAreas, useStore } from '../store'
 
 const SLOTS: { key: TimeOfDay; label: string }[] = [
@@ -26,83 +31,83 @@ export function summaryLine(done: number, total: number, streak: number): string
   return streak > 0 ? `${base} Streak: ${streak} day${streak === 1 ? '' : 's'}.` : base
 }
 
-function RoutineItem({ routine, done }: { routine: Routine; done: boolean }) {
-  const { dispatch, today } = useStore()
-  const { byId } = useAreas()
-  const area = byId.get(routine.areaId)
-  return (
-    <li>
-      <label className={`check ${done ? 'done' : ''}`}>
-        <input
-          type="checkbox"
-          checked={done}
-          onChange={() => dispatch({ type: 'toggleRoutine', date: today, routineId: routine.id })}
-        />
-        <span className="box" aria-hidden />
-        <span className="check-title">{routine.title}</span>
-        {area && (
-          <span className="tag">
-            <Dot color={area.color} />
-            {area.name}
-          </span>
-        )}
-      </label>
-    </li>
-  )
-}
-
 export function Today() {
-  const { state, today } = useStore()
+  const { state, dispatch, today } = useStore()
   const { byId } = useAreas()
   const score = dayScore(state, today)
   const streak = currentStreak(state, today)
   const routines = scheduledRoutines(state, today)
-  const completed = new Set(state.completions[today] ?? [])
+  const completed = state.completions[today] ?? []
   const rules = state.rules.filter((r) => !r.archived)
   const goals = state.goals.filter((g) => !g.archived)
 
+  /** CheckboxList reports the full checked set; toggle whatever changed. */
+  const onSlotChange = (slotIds: readonly string[], next: string[]) => {
+    for (const id of slotIds) {
+      if (completed.includes(id) !== next.includes(id)) dispatch({ type: 'toggleRoutine', date: today, routineId: id })
+    }
+  }
+
   return (
-    <div className="screen">
-      <header className="hero-head">
-        <p className="eyebrow">{formatDay(today)}</p>
-        <h1>{greeting(new Date().getHours())}</h1>
-        <p className="sub">{summaryLine(score.done, score.total, streak)}</p>
-        <ProgressBar ratio={score.score ?? 0} />
-      </header>
+    <VStack gap={6}>
+      <VStack gap={3}>
+        <PageHeader eyebrow={formatDay(today)} title={greeting(new Date().getHours())} subtitle={summaryLine(score.done, score.total, streak)} />
+        <ProgressBar label="Today's progress" isLabelHidden value={score.done} max={Math.max(score.total, 1)} variant={score.total > 0 && score.done === score.total ? 'success' : 'accent'} />
+      </VStack>
 
       {routines.length === 0 && rules.length === 0 && goals.length === 0 && (
-        <Empty>Your system is empty. Add routines, rules and goals in Areas.</Empty>
+        <Empty title="Your system is empty">Add routines, rules and goals in Areas.</Empty>
       )}
 
       {SLOTS.map(({ key, label }) => {
         const items = routines.filter((r) => r.timeOfDay === key)
         if (items.length === 0) return null
+        const ids = items.map((r) => r.id)
         return (
-          <Section key={key} title={label}>
-            <ul className="checklist">
-              {items.map((r) => (
-                <RoutineItem key={r.id} routine={r} done={completed.has(r.id)} />
-              ))}
-            </ul>
-          </Section>
+          <CheckboxList
+            key={key}
+            label={label}
+            value={completed.filter((id) => ids.includes(id))}
+            onChange={(next) => onSlotChange(ids, next)}
+            hasDividers
+          >
+            {items.map((r) => {
+              const area = byId.get(r.areaId)
+              return (
+                <CheckboxListItem
+                  key={r.id}
+                  value={r.id}
+                  label={r.title}
+                  endContent={area && <Token label={area.name} color={areaTone(area.color)} size="sm" />}
+                />
+              )
+            })}
+          </CheckboxList>
         )
       })}
 
       {rules.length > 0 && (
         <Section title="Rules check">
-          {rules.map((r) => (
-            <RuleCheck key={r.id} rule={r} color={byId.get(r.areaId)?.color ?? '#fff'} />
-          ))}
+          <VStack gap={0}>
+            {rules.map((r, i) => (
+              <VStack key={r.id} gap={0}>
+                {i > 0 && <Divider />}
+                <RuleCheck rule={r} area={byId.get(r.areaId)} />
+              </VStack>
+            ))}
+          </VStack>
         </Section>
       )}
 
       {goals.length > 0 && (
         <Section title="Goals">
-          {goals.map((g) => (
-            <GoalRow key={g.id} goal={g} color={byId.get(g.areaId)?.color ?? '#fff'} />
-          ))}
+          <VStack gap={5}>
+            {goals.map((g) => (
+              <GoalRow key={g.id} goal={g} />
+            ))}
+          </VStack>
         </Section>
       )}
-    </div>
+    </VStack>
   )
 }

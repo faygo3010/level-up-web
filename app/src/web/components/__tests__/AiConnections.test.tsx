@@ -46,9 +46,9 @@ describe('AiConnections', () => {
     fireEvent.click(button)
     expect(calls.some((c) => c.method === 'DELETE')).toBe(false)
     fireEvent.click(screen.getByRole('button', { name: 'Tap to confirm' }))
-    await waitFor(() => expect(screen.getByRole('status').textContent).toBe('Claude disconnected.'))
+    expect(await screen.findByText('Claude disconnected.')).toBeInTheDocument()
     expect(calls.some((c) => c.method === 'DELETE' && c.url.endsWith('/api/connections/c1'))).toBe(true)
-    expect(screen.queryByText('Claude', { selector: 'strong' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Disconnect' })).not.toBeInTheDocument()
   })
 
   it('does not reload in a loop when the parent passes new callbacks each render', async () => {
@@ -64,7 +64,7 @@ describe('AiConnections', () => {
   it('shows a helpful message when the connector is unreachable', async () => {
     mockFetch({ 'GET /api/connections': () => new Response('down', { status: 502 }) })
     render(<AiConnections connectorUrl={URL_BASE} getToken={token} />)
-    expect(await screen.findByRole('status')).toHaveTextContent("Couldn't reach the connector")
+    expect(await screen.findByText(/Couldn't reach the connector/)).toBeInTheDocument()
   })
 
   it('does nothing while signed out', async () => {

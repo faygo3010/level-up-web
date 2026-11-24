@@ -1,10 +1,20 @@
+import { Button } from '@astryxdesign/core/Button'
+import { ClickableCard } from '@astryxdesign/core/ClickableCard'
+import { Grid } from '@astryxdesign/core/Grid'
+import { Heading } from '@astryxdesign/core/Heading'
+import { HStack } from '@astryxdesign/core/HStack'
+import { List, ListItem } from '@astryxdesign/core/List'
+import { ProgressBar } from '@astryxdesign/core/ProgressBar'
+import { Text } from '@astryxdesign/core/Text'
+import { Token } from '@astryxdesign/core/Token'
+import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
 import { areaAdherence } from '../../core/adherence'
 import { describeDays } from '../../core/format'
 import type { Area, Goal, Routine, Rule } from '../../core/types'
 import { AreaForm, GoalForm, RoutineForm, RuleForm } from '../components/forms'
 import { GoalRow } from '../components/GoalRow'
-import { Empty, ProgressBar, Section, pct } from '../components/ui'
+import { Empty, PageHeader, Section, areaTone, pct, plural } from '../components/ui'
 import { useAreas, useStore } from '../store'
 
 type Editing =
@@ -15,9 +25,7 @@ type Editing =
   | null
 
 const AddButton = ({ onClick, label }: { onClick: () => void; label: string }) => (
-  <button className="chip" onClick={onClick} aria-label={label}>
-    + Add
-  </button>
+  <Button size="sm" variant="secondary" label="Add" aria-label={label} onClick={onClick} />
 )
 
 function AreaDetail({ area, onBack }: { area: Area; onBack: () => void }) {
@@ -29,56 +37,61 @@ function AreaDetail({ area, onBack }: { area: Area; onBack: () => void }) {
   const goals = state.goals.filter((g) => g.areaId === area.id && !g.archived)
 
   return (
-    <div className="screen">
-      <button className="back" onClick={onBack}>
-        ‹ Areas
-      </button>
-      <header className="area-head">
-        <h1>
-          <span className="area-icon">{area.icon}</span> {area.name}
-        </h1>
-        <button className="chip" onClick={() => setEditing({ kind: 'area', area })}>
-          Edit
-        </button>
-      </header>
+    <VStack gap={6}>
+      <HStack>
+        <Button variant="ghost" size="sm" label="‹ Areas" onClick={onBack} />
+      </HStack>
+      <PageHeader
+        title={`${area.icon} ${area.name}`}
+        action={<Button variant="secondary" size="sm" label="Edit" onClick={() => setEditing({ kind: 'area', area })} />}
+      />
 
       <Section title="Routines" action={<AddButton label="Add routine" onClick={() => setEditing({ kind: 'routine' })} />}>
-        {routines.length === 0 && <Empty>No routines yet. What do you do every time?</Empty>}
-        {routines.map((r) => (
-          <button key={r.id} className="list-item" onClick={() => setEditing({ kind: 'routine', routine: r })}>
-            <span>{r.title}</span>
-            <span className="muted">{describeDays(r.days)}</span>
-          </button>
-        ))}
+        {routines.length === 0 ? (
+          <Empty>No routines yet. What do you do every time?</Empty>
+        ) : (
+          <List hasDividers>
+            {routines.map((r) => (
+              <ListItem key={r.id} label={r.title} description={`${describeDays(r.days)} · ${r.timeOfDay}`} onClick={() => setEditing({ kind: 'routine', routine: r })} />
+            ))}
+          </List>
+        )}
       </Section>
 
       <Section title="Playbook rules" action={<AddButton label="Add rule" onClick={() => setEditing({ kind: 'rule' })} />}>
-        {rules.length === 0 && <Empty>No rules yet. What do you never do?</Empty>}
-        {rules.map((r, i) => (
-          <button key={r.id} className="list-item" onClick={() => setEditing({ kind: 'rule', rule: r })}>
-            <span className="muted">{i + 1}.</span>
-            <span className="grow">{r.text}</span>
-          </button>
-        ))}
+        {rules.length === 0 ? (
+          <Empty>No rules yet. What do you never do?</Empty>
+        ) : (
+          <List hasDividers listStyle="decimal">
+            {rules.map((r) => (
+              <ListItem key={r.id} label={r.text} onClick={() => setEditing({ kind: 'rule', rule: r })} />
+            ))}
+          </List>
+        )}
       </Section>
 
       <Section title="Goals" action={<AddButton label="Add goal" onClick={() => setEditing({ kind: 'goal' })} />}>
-        {goals.length === 0 && <Empty>No goals yet. What does progress look like?</Empty>}
-        {goals.map((g) => (
-          <div key={g.id} className="goal-wrap">
-            <GoalRow goal={g} color={area.color} />
-            <button className="link" onClick={() => setEditing({ kind: 'goal', goal: g })}>
-              Edit goal
-            </button>
-          </div>
-        ))}
+        {goals.length === 0 ? (
+          <Empty>No goals yet. What does progress look like?</Empty>
+        ) : (
+          <VStack gap={5}>
+            {goals.map((g) => (
+              <VStack key={g.id} gap={1} hAlign="stretch">
+                <GoalRow goal={g} />
+                <HStack justify="end">
+                  <Button variant="ghost" size="sm" label="Edit goal" aria-label={`Edit goal ${g.title}`} onClick={() => setEditing({ kind: 'goal', goal: g })} />
+                </HStack>
+              </VStack>
+            ))}
+          </VStack>
+        )}
       </Section>
 
       {editing?.kind === 'area' && <AreaForm area={editing.area} onClose={close} />}
       {editing?.kind === 'routine' && <RoutineForm areaId={area.id} routine={editing.routine} onClose={close} />}
       {editing?.kind === 'rule' && <RuleForm areaId={area.id} rule={editing.rule} onClose={close} />}
       {editing?.kind === 'goal' && <GoalForm areaId={area.id} goal={editing.goal} onClose={close} />}
-    </div>
+    </VStack>
   )
 }
 
@@ -92,37 +105,37 @@ export function Areas() {
   if (area && !area.archived) return <AreaDetail area={area} onBack={() => setSelected(null)} />
 
   return (
-    <div className="screen">
-      <header className="hero-head">
-        <h1>Areas</h1>
-        <p className="sub">Each area of your life has its own routines, rules and goals.</p>
-      </header>
-      <div className="area-grid">
+    <VStack gap={6}>
+      <PageHeader
+        title="Areas"
+        subtitle="Each area of your life has its own routines, rules and goals."
+        action={<Button variant="primary" size="sm" label="Add area" onClick={() => setAdding(true)} />}
+      />
+      {active.length === 0 && <Empty title="No areas yet">Add one for each part of your life you want to run on a system.</Empty>}
+      <Grid columns={{ minWidth: 260 }} gap={3}>
         {active.map((a) => {
           const week = areaAdherence(state, a.id, today, 7)
-          const count = state.routines.filter((r) => r.areaId === a.id && !r.archived).length
+          const routines = state.routines.filter((r) => r.areaId === a.id && !r.archived).length
           const rules = state.rules.filter((r) => r.areaId === a.id && !r.archived).length
           return (
-            <button key={a.id} className="area-card" onClick={() => setSelected(a.id)} style={{ borderTopColor: a.color }}>
-              <div className="area-card-top">
-                <span className="area-icon">{a.icon}</span>
-                <span className="area-pct">{pct(week)}</span>
-              </div>
-              <div className="area-name">{a.name}</div>
-              <div className="muted small">
-                {count} routines · {rules} rules
-              </div>
-              <ProgressBar ratio={week ?? 0} color={a.color} />
-            </button>
+            <ClickableCard key={a.id} label={`Open ${a.name}`} onClick={() => setSelected(a.id)} padding={4}>
+              <VStack gap={2}>
+                <HStack justify="between" vAlign="center">
+                  <Heading level={3}>
+                    {a.icon} {a.name}
+                  </Heading>
+                  <Token label={`${pct(week)} this week`} color={areaTone(a.color)} size="sm" />
+                </HStack>
+                <Text type="supporting" color="secondary">
+                  {plural(routines, 'routine')} · {plural(rules, 'rule')}
+                </Text>
+                <ProgressBar label={`${a.name} adherence this week`} isLabelHidden value={Math.round((week ?? 0) * 100)} max={100} />
+              </VStack>
+            </ClickableCard>
           )
         })}
-        <button className="area-card add" onClick={() => setAdding(true)}>
-          <span className="area-icon">＋</span>
-          <div className="area-name">Add area</div>
-          <div className="muted small">Health, learning, family…</div>
-        </button>
-      </div>
+      </Grid>
       {adding && <AreaForm onClose={() => setAdding(false)} />}
-    </div>
+    </VStack>
   )
 }

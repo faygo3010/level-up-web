@@ -1,8 +1,15 @@
+import { CheckboxInput } from '@astryxdesign/core/CheckboxInput'
+import { DateInput } from '@astryxdesign/core/DateInput'
+import { NumberInput } from '@astryxdesign/core/NumberInput'
+import { SegmentedControl, SegmentedControlItem } from '@astryxdesign/core/SegmentedControl'
+import { Selector } from '@astryxdesign/core/Selector'
+import { TextArea } from '@astryxdesign/core/TextArea'
+import { TextInput } from '@astryxdesign/core/TextInput'
 import { useState } from 'react'
 import { newId } from '../../core/ids'
 import type { LogEntry, LogKind } from '../../core/types'
 import { useAreas, useStore } from '../store'
-import { Field, Sheet } from './ui'
+import { FormShell } from './forms'
 
 const KINDS: { kind: LogKind; label: string }[] = [
   { kind: 'trade', label: 'Trade' },
@@ -17,10 +24,11 @@ function defaultArea(kind: LogKind, areas: readonly { id: string; name: string }
   return areas.find((a) => a.name.toLowerCase().includes(hint[kind]))?.id ?? areas[0]?.id ?? ''
 }
 
-const num = (s: string): number | null => {
-  const n = Number(s)
-  return s.trim() !== '' && Number.isFinite(n) ? n : null
-}
+/** Astryx's DateInput uses a stricter template-literal type for YYYY-MM-DD; our DateKey is the same format. */
+type IsoDate = `${number}${number}${number}${number}-${number}${number}-${number}${number}`
+const iso = (d: string) => d as IsoDate
+
+const finite = (n: number | undefined): number | null => (n !== undefined && Number.isFinite(n) ? n : null)
 
 export function LogForm({ onClose }: { onClose: () => void }) {
   const { dispatch, today } = useStore()
@@ -31,146 +39,105 @@ export function LogForm({ onClose }: { onClose: () => void }) {
   const [text, setText] = useState('')
   const [symbol, setSymbol] = useState('')
   const [side, setSide] = useState<'long' | 'short'>('long')
-  const [pnl, setPnl] = useState('')
+  const [pnl, setPnl] = useState<number | undefined>()
   const [followedPlan, setFollowedPlan] = useState(true)
   const [activity, setActivity] = useState('')
-  const [minutes, setMinutes] = useState('')
-  const [amount, setAmount] = useState('')
-  const [isIncome, setIsIncome] = useState(false)
+  const [minutes, setMinutes] = useState<number | undefined>()
+  const [amount, setAmount] = useState<number | undefined>()
+  const [flow, setFlow] = useState<'spent' | 'received'>('spent')
   const [category, setCategory] = useState('')
-  const [error, setError] = useState('')
 
-  const pickKind = (k: LogKind) => {
-    setKind(k)
-    setAreaId(defaultArea(k, active))
-    setError('')
+  const pickKind = (k: string) => {
+    const next = k as LogKind
+    setKind(next)
+    setAreaId(defaultArea(next, active))
   }
 
   const build = (): LogEntry | string => {
-    const base = { id: newId(), areaId, date, text: text.trim().slice(0, 2000), createdAt: Date.now() }
     if (!areaId) return 'Add an area first.'
+    const base = { id: newId(), areaId, date: date > today ? today : date, text: text.trim().slice(0, 2000), createdAt: Date.now() }
     switch (kind) {
       case 'note':
         return base.text ? { ...base, kind } : 'Write something first.'
       case 'trade': {
-        const p = num(pnl)
+        const p = finite(pnl)
         if (p === null) return 'Enter the P&L (negative for a loss).'
         return { ...base, kind, trade: { symbol: symbol.trim().toUpperCase().slice(0, 20), side, pnl: p, followedPlan } }
       }
       case 'workout': {
-        const m = num(minutes)
+        const m = finite(minutes)
         if (m === null || m < 0) return 'Enter how many minutes.'
         return { ...base, kind, workout: { activity: activity.trim().slice(0, 60) || 'Workout', minutes: m } }
       }
       case 'money': {
-        const a = num(amount)
+        const a = finite(amount)
         if (a === null || a === 0) return 'Enter an amount.'
-        const signed = isIncome ? Math.abs(a) : -Math.abs(a)
+        const signed = flow === 'received' ? Math.abs(a) : -Math.abs(a)
         return { ...base, kind, money: { amount: signed, category: category.trim().toLowerCase().slice(0, 40) || 'other' } }
       }
     }
   }
 
-  const save = (e: React.FormEvent) => {
-    e.preventDefault()
+  const save = () => {
     const result = build()
-    if (typeof result === 'string') return setError(result)
+    if (typeof result === 'string') return result
     dispatch({ type: 'addLog', entry: result })
-    onClose()
+    return null
   }
 
   return (
-    <Sheet title="New journal entry" onClose={onClose}>
-      <form className="form" onSubmit={save}>
-        <div className="seg wide" role="tablist">
-          {KINDS.map((k) => (
-            <button key={k.kind} type="button" role="tab" aria-selected={kind === k.kind} className={kind === k.kind ? 'on' : ''} onClick={() => pickKind(k.kind)}>
-              {k.label}
-            </button>
-          ))}
-        </div>
+    <FormShell title="New journal entry" onClose={onClose} onSubmit={save}>
+      <SegmentedControl label="Entry type" value={kind} onChange={pickKind} layout="fill">
+        {KINDS.map((k) => (
+          <SegmentedControlItem key={k.kind} value={k.kind} label={k.label} />
+        ))}
+      </SegmentedControl>
 
-        {kind === 'trade' && (
-          <>
-            <div className="row">
-              <Field label="Symbol">
-                <input value={symbol} onChange={(e) => setSymbol(e.target.value)} placeholder="ES, AAPL, BTC" />
-              </Field>
-              <Field label="Side">
-                <select value={side} onChange={(e) => setSide(e.target.value as 'long' | 'short')}>
-                  <option value="long">Long</option>
-                  <option value="short">Short</option>
-                </select>
-              </Field>
-            </div>
-            <Field label="P&L">
-              <input inputMode="decimal" value={pnl} onChange={(e) => setPnl(e.target.value)} placeholder="-120 or 250" />
-            </Field>
-            <label className="toggle">
-              <input type="checkbox" checked={followedPlan} onChange={(e) => setFollowedPlan(e.target.checked)} />
-              <span>I followed my plan and rules on this trade</span>
-            </label>
-          </>
-        )}
+      {kind === 'trade' && (
+        <>
+          <TextInput label="Symbol" value={symbol} onChange={setSymbol} placeholder="ES, AAPL, BTC" />
+          <Selector
+            label="Side"
+            value={side}
+            onChange={(v) => setSide(v as 'long' | 'short')}
+            options={[
+              { value: 'long', label: 'Long' },
+              { value: 'short', label: 'Short' },
+            ]}
+          />
+          <NumberInput label="P&L" value={pnl} onChange={setPnl} placeholder="-120 or 250" />
+          <CheckboxInput label="I followed my plan and rules on this trade" value={followedPlan} onChange={setFollowedPlan} />
+        </>
+      )}
 
-        {kind === 'workout' && (
-          <div className="row">
-            <Field label="Activity">
-              <input value={activity} onChange={(e) => setActivity(e.target.value)} placeholder="Run, lift, swim" />
-            </Field>
-            <Field label="Minutes">
-              <input inputMode="numeric" value={minutes} onChange={(e) => setMinutes(e.target.value)} placeholder="45" />
-            </Field>
-          </div>
-        )}
+      {kind === 'workout' && (
+        <>
+          <TextInput label="Activity" value={activity} onChange={setActivity} placeholder="Run, lift, swim" />
+          <NumberInput label="Minutes" value={minutes} onChange={setMinutes} placeholder="45" />
+        </>
+      )}
 
-        {kind === 'money' && (
-          <>
-            <div className="seg wide">
-              <button type="button" className={!isIncome ? 'on' : ''} onClick={() => setIsIncome(false)}>
-                Spent
-              </button>
-              <button type="button" className={isIncome ? 'on' : ''} onClick={() => setIsIncome(true)}>
-                Received
-              </button>
-            </div>
-            <div className="row">
-              <Field label="Amount">
-                <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="25" />
-              </Field>
-              <Field label="Category">
-                <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="food, rent, salary" />
-              </Field>
-            </div>
-          </>
-        )}
+      {kind === 'money' && (
+        <>
+          <SegmentedControl label="Direction" value={flow} onChange={(v) => setFlow(v as 'spent' | 'received')} layout="fill">
+            <SegmentedControlItem value="spent" label="Spent" />
+            <SegmentedControlItem value="received" label="Received" />
+          </SegmentedControl>
+          <NumberInput label="Amount" value={amount} onChange={setAmount} placeholder="25" />
+          <TextInput label="Category" value={category} onChange={setCategory} placeholder="food, rent, salary" />
+        </>
+      )}
 
-        <Field label={kind === 'note' ? 'Note' : 'Notes (optional)'}>
-          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder={kind === 'trade' ? 'Setup, emotions, what you would repeat' : ''} />
-        </Field>
-
-        <div className="row">
-          <Field label="Area">
-            <select value={areaId} onChange={(e) => setAreaId(e.target.value)}>
-              {active.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.icon} {a.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Date">
-            <input type="date" value={date} max={today} onChange={(e) => setDate(e.target.value || today)} />
-          </Field>
-        </div>
-
-        {error && <p className="error" role="alert">{error}</p>}
-        <div className="form-actions">
-          <button type="submit" className="btn primary">
-            Save entry
-          </button>
-        </div>
-      </form>
-    </Sheet>
+      <TextArea
+        label={kind === 'note' ? 'Note' : 'Notes'}
+        isOptional={kind !== 'note'}
+        value={text}
+        onChange={setText}
+        rows={3}
+        placeholder={kind === 'trade' ? 'Setup, emotions, what you would repeat' : ''}
+      />
+      <Selector label="Area" value={areaId} onChange={setAreaId} options={active.map((a) => ({ value: a.id, label: `${a.icon} ${a.name}` }))} />
+      <DateInput label="Date" value={iso(date)} max={iso(today)} onChange={(v) => setDate(v || today)} />
+    </FormShell>
   )
 }

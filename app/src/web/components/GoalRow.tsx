@@ -1,10 +1,16 @@
-import { useState, type FormEvent } from 'react'
-import { goalProgress, type GoalProgress } from '../../core/progress'
-import { newId } from '../../core/ids'
+import { Button } from '@astryxdesign/core/Button'
+import { HStack } from '@astryxdesign/core/HStack'
+import { NumberInput } from '@astryxdesign/core/NumberInput'
+import { ProgressBar } from '@astryxdesign/core/ProgressBar'
+import { Text } from '@astryxdesign/core/Text'
+import { VStack } from '@astryxdesign/core/VStack'
+import { useState } from 'react'
 import { withUnit } from '../../core/format'
+import { newId } from '../../core/ids'
+import { goalProgress, type GoalProgress } from '../../core/progress'
 import type { Goal } from '../../core/types'
 import { useStore } from '../store'
-import { ProgressBar } from './ui'
+import { statusVariant } from './ui'
 
 const PERIOD_LABEL: Record<Goal['period'], string> = {
   daily: 'today',
@@ -25,49 +31,58 @@ export function describeProgress(goal: Goal, p: GoalProgress): string {
   return `${withUnit(p.remaining, goal.unit)} to go ${period}.`
 }
 
-export function GoalRow({ goal, color }: { goal: Goal; color: string }) {
+export function GoalRow({ goal }: { goal: Goal }) {
   const { state, dispatch, today } = useStore()
-  const [value, setValue] = useState('')
+  const [value, setValue] = useState<number | null>(null)
   const progress = goalProgress(goal, state.goalEntries, today, state.settings.weekStartsOn)
 
-  const log = (amount: number) => {
-    if (!Number.isFinite(amount) || amount === 0) return
+  const log = (amount: number | null) => {
+    if (amount === null || !Number.isFinite(amount) || amount === 0) return
     dispatch({ type: 'addGoalEntry', entry: { id: newId(), goalId: goal.id, date: today, value: amount } })
   }
 
-  const onSubmit = (e: FormEvent) => {
-    e.preventDefault()
-    log(Number(value))
-    setValue('')
-  }
-
   return (
-    <div className="goal">
-      <div className="goal-top">
-        <span className="goal-title">{goal.title}</span>
-        <span className="goal-num">
-          {fmt(progress.current)} / {withUnit(goal.target, goal.unit)}
-        </span>
-      </div>
-      <ProgressBar ratio={progress.ratio} color={color} status={progress.status} />
-      <div className="goal-bottom">
-        <span className={`goal-note ${progress.status}`}>{describeProgress(goal, progress)}</span>
-        <form className="goal-log" onSubmit={onSubmit}>
-          <button type="button" className="chip" onClick={() => log(1)} aria-label={`Add 1 to ${goal.title}`}>
-            +1
-          </button>
-          <input
-            inputMode="decimal"
+    <VStack gap={1.5}>
+      <ProgressBar
+        label={goal.title}
+        value={Math.min(progress.current, goal.target)}
+        max={goal.target || 1}
+        hasValueLabel
+        formatValueLabel={() => `${fmt(progress.current)} / ${withUnit(goal.target, goal.unit)}`}
+        variant={statusVariant(progress.status)}
+      />
+      <HStack justify="between" vAlign="center" gap={2} wrap="wrap">
+        <Text type="supporting" color={progress.status === 'behind' || progress.status === 'over' ? 'accent' : 'secondary'}>
+          {describeProgress(goal, progress)}
+        </Text>
+        <HStack gap={1} vAlign="end">
+          <Button size="sm" variant="secondary" label="+1" aria-label={`Add 1 to ${goal.title}`} onClick={() => log(1)} />
+          <NumberInput
+            size="sm"
+            label={`Log amount for ${goal.title}`}
+            isLabelHidden
             placeholder="amount"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            aria-label={`Log amount for ${goal.title}`}
+            value={value ?? undefined}
+            onChange={(n) => setValue(Number.isFinite(n) ? n : null)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                log(value)
+                setValue(null)
+              }
+            }}
           />
-          <button type="submit" className="chip">
-            Log
-          </button>
-        </form>
-      </div>
-    </div>
+          <Button
+            size="sm"
+            variant="secondary"
+            label="Log"
+            aria-label={`Log amount for ${goal.title} now`}
+            onClick={() => {
+              log(value)
+              setValue(null)
+            }}
+          />
+        </HStack>
+      </HStack>
+    </VStack>
   )
 }

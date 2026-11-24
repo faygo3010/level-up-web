@@ -1,7 +1,14 @@
-import { useState, type FormEvent } from 'react'
+import { Banner } from '@astryxdesign/core/Banner'
+import { Button } from '@astryxdesign/core/Button'
+import { FormLayout } from '@astryxdesign/core/FormLayout'
+import { HStack } from '@astryxdesign/core/HStack'
+import { Text } from '@astryxdesign/core/Text'
+import { TextInput } from '@astryxdesign/core/TextInput'
+import { VStack } from '@astryxdesign/core/VStack'
+import { useState } from 'react'
 import { useSync } from '../sync/useSync'
 import { AiConnections } from './AiConnections'
-import { Field, Section } from './ui'
+import { Section } from './ui'
 
 function syncedLabel(at: number | null): string {
   if (at === null) return 'Not synced yet'
@@ -17,8 +24,7 @@ function SignIn() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  const submit = async (e: FormEvent) => {
-    e.preventDefault()
+  const submit = async () => {
     setBusy(true)
     setError('')
     const err = sent ? await sync.verifyCode(email, code) : await sync.sendCode(email)
@@ -28,53 +34,29 @@ function SignIn() {
   }
 
   return (
-    <form className="form" onSubmit={submit}>
-      <p className="muted small">
-        Optional. Sign in to back up your system and use it on your phone and laptop. Without an account, everything stays on
-        this device.
-      </p>
-      <Field label="Email">
-        <input
-          id="account-email"
-          type="email"
-          autoComplete="email"
-          value={email}
-          disabled={sent}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@example.com"
-          required
-        />
-      </Field>
-      {sent && (
-        <Field label="6-digit code from the email">
-          <input
-            id="account-code"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            placeholder="123456"
-            autoFocus
-            required
-          />
-        </Field>
-      )}
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
-      <div className="form-actions">
+    <VStack gap={3}>
+      <Text color="secondary">
+        Optional. Sign in to back up your system and use it on your phone and laptop. Without an account, everything stays on this device.
+      </Text>
+      <FormLayout>
+        <TextInput label="Email" type="email" value={email} isDisabled={sent} onChange={setEmail} placeholder="you@example.com" onEnter={submit} />
+        {sent && <TextInput label="6-digit code from the email" value={code} onChange={setCode} placeholder="123456" onEnter={submit} />}
+      </FormLayout>
+      {error && <Banner status="error" title={error} />}
+      <HStack gap={2} justify="end">
         {sent && (
-          <button type="button" className="btn ghost" onClick={() => (setSent(false), setCode(''))}>
-            Use a different email
-          </button>
+          <Button
+            variant="ghost"
+            label="Use a different email"
+            onClick={() => {
+              setSent(false)
+              setCode('')
+            }}
+          />
         )}
-        <button type="submit" className="btn primary" disabled={busy}>
-          {busy ? 'Working…' : sent ? 'Sign in' : 'Email me a code'}
-        </button>
-      </div>
-    </form>
+        <Button variant="primary" label={sent ? 'Sign in' : 'Email me a code'} isLoading={busy} onClick={() => void submit()} />
+      </HStack>
+    </VStack>
   )
 }
 
@@ -86,20 +68,11 @@ function AiAppsSection() {
   return (
     <Section title="AI apps">
       {sync.status === 'signedOut' ? (
-        <p className="muted small">Sign in above to connect Claude, ChatGPT or another AI app to your Level Up.</p>
+        <Text color="secondary">Sign in above to connect Claude, ChatGPT or another AI app to your Level Up.</Text>
       ) : (
         <AiConnections connectorUrl={CONNECTOR_URL} getToken={sync.getAccessToken} onRefresh={sync.syncNow} />
       )}
     </Section>
-  )
-}
-
-export function AccountSection() {
-  return (
-    <>
-      <AccountCard />
-      <AiAppsSection />
-    </>
   )
 }
 
@@ -109,7 +82,7 @@ function AccountCard() {
   if (!sync.configured) {
     return (
       <Section title="Account & sync">
-        <p className="muted small">Sync isn't set up on this copy of the app. Your data is saved on this device only.</p>
+        <Text color="secondary">Sync isn't set up on this copy of the app. Your data is saved on this device only.</Text>
       </Section>
     )
   }
@@ -124,22 +97,23 @@ function AccountCard() {
 
   return (
     <Section title="Account & sync">
-      <div className="stack">
-        <p className="muted small" role="status">
-          Signed in as <strong>{sync.email}</strong>. {sync.status === 'syncing' ? 'Syncing…' : syncedLabel(sync.lastSynced)}
-        </p>
-        {sync.error && (
-          <p className="error" role="alert">
-            {sync.error}
-          </p>
-        )}
-        <button className="btn" onClick={sync.syncNow} disabled={sync.status === 'syncing'}>
-          Sync now
-        </button>
-        <button className="btn ghost" onClick={() => void sync.signOut()}>
-          Sign out (keeps a copy on this device)
-        </button>
-      </div>
+      <VStack gap={2} hAlign="stretch">
+        <Text color="secondary" role="status">
+          Signed in as {sync.email}. {sync.status === 'syncing' ? 'Syncing…' : syncedLabel(sync.lastSynced)}
+        </Text>
+        {sync.error && <Banner status="error" title={sync.error} />}
+        <Button variant="secondary" label="Sync now" onClick={sync.syncNow} isDisabled={sync.status === 'syncing'} />
+        <Button variant="ghost" label="Sign out (keeps a copy on this device)" onClick={() => void sync.signOut()} />
+      </VStack>
     </Section>
+  )
+}
+
+export function AccountSection() {
+  return (
+    <>
+      <AccountCard />
+      <AiAppsSection />
+    </>
   )
 }

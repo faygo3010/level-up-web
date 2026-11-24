@@ -1,3 +1,6 @@
+import { Button } from '@astryxdesign/core/Button'
+import { Text } from '@astryxdesign/core/Text'
+import { VStack } from '@astryxdesign/core/VStack'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { starterState } from '../../../core/defaults'
@@ -48,11 +51,11 @@ function Probe() {
   const { state, dispatch } = useStore()
   const sync = useSync()
   return (
-    <div>
-      <span data-testid="status">{sync.status}</span>
-      <span data-testid="currency">{state.settings.currency}</span>
-      <button onClick={() => dispatch({ type: 'updateSettings', settings: { currency: '€' } })}>edit</button>
-    </div>
+    <VStack>
+      <Text data-testid="status">{sync.status}</Text>
+      <Text data-testid="currency">{state.settings.currency}</Text>
+      <Button label="edit" onClick={() => dispatch({ type: 'updateSettings', settings: { currency: '€' } })} />
+    </VStack>
   )
 }
 

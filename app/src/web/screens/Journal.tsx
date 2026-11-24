@@ -1,8 +1,14 @@
+import { Badge } from '@astryxdesign/core/Badge'
+import { Button } from '@astryxdesign/core/Button'
+import { HStack } from '@astryxdesign/core/HStack'
+import { List, ListItem } from '@astryxdesign/core/List'
+import { SegmentedControl, SegmentedControlItem } from '@astryxdesign/core/SegmentedControl'
+import { VStack } from '@astryxdesign/core/VStack'
 import { useMemo, useState } from 'react'
 import { formatDay } from '../../core/dates'
 import type { LogEntry, LogKind } from '../../core/types'
 import { LogForm } from '../components/LogForm'
-import { ConfirmButton, Dot, Empty, money } from '../components/ui'
+import { AreaTag, ConfirmButton, Empty, PageHeader, Section, money } from '../components/ui'
 import { useAreas, useStore } from '../store'
 
 type Filter = 'all' | LogKind
@@ -15,33 +21,18 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: 'note', label: 'Notes' },
 ]
 
-function Headline({ entry, currency }: { entry: LogEntry; currency: string }) {
+export function headline(entry: LogEntry, currency: string): string {
   switch (entry.kind) {
     case 'trade': {
-      const { symbol, side, pnl, followedPlan } = entry.trade
-      return (
-        <>
-          <strong>{symbol || 'Trade'}</strong> {side} ·{' '}
-          <span className={pnl >= 0 ? 'pos' : 'neg'}>{money(pnl, currency)}</span>
-          <span className={`pill ${followedPlan ? 'good' : 'bad'}`}>{followedPlan ? 'Followed plan' : 'Broke plan'}</span>
-        </>
-      )
+      const { symbol, side, pnl } = entry.trade
+      return `${symbol || 'Trade'} ${side} · ${money(pnl, currency)}`
     }
     case 'workout':
-      return (
-        <>
-          <strong>{entry.workout.activity}</strong> · {entry.workout.minutes} min
-        </>
-      )
+      return `${entry.workout.activity} · ${entry.workout.minutes} min`
     case 'money':
-      return (
-        <>
-          <strong className={entry.money.amount >= 0 ? 'pos' : 'neg'}>{money(entry.money.amount, currency)}</strong> ·{' '}
-          {entry.money.category}
-        </>
-      )
+      return `${money(entry.money.amount, currency)} · ${entry.money.category}`
     case 'note':
-      return <strong>Note</strong>
+      return 'Note'
   }
 }
 
@@ -50,6 +41,7 @@ export function Journal() {
   const { byId } = useAreas()
   const [filter, setFilter] = useState<Filter>('all')
   const [adding, setAdding] = useState(false)
+  const { currency } = state.settings
 
   const groups = useMemo(() => {
     const items = state.logs.filter((l) => filter === 'all' || l.kind === filter)
@@ -63,60 +55,45 @@ export function Journal() {
   }, [state.logs, filter])
 
   return (
-    <div className="screen">
-      <header className="hero-head row-between">
-        <div>
-          <h1>Journal</h1>
-          <p className="sub">Trades, workouts, money and notes.</p>
-        </div>
-        <button className="btn primary" onClick={() => setAdding(true)}>
-          + Entry
-        </button>
-      </header>
+    <VStack gap={6}>
+      <PageHeader
+        title="Journal"
+        subtitle="Trades, workouts, money and notes."
+        action={<Button variant="primary" size="sm" label="New entry" onClick={() => setAdding(true)} />}
+      />
 
-      <div className="filters">
+      <SegmentedControl label="Show" value={filter} onChange={(v) => setFilter(v as Filter)} layout="fill" size="sm">
         {FILTERS.map((f) => (
-          <button key={f.key} className={`chip ${filter === f.key ? 'on' : ''}`} onClick={() => setFilter(f.key)}>
-            {f.label}
-          </button>
+          <SegmentedControlItem key={f.key} value={f.key} label={f.label} />
         ))}
-      </div>
+      </SegmentedControl>
 
-      {groups.length === 0 && <Empty>No entries yet. Log your first trade, workout or expense.</Empty>}
+      {groups.length === 0 && <Empty title="No entries yet">Log your first trade, workout or expense.</Empty>}
 
       {groups.map((g) => (
-        <section key={g.date} className="section">
-          <h2 className="day-head">{formatDay(g.date)}</h2>
-          {g.entries.map((e) => {
-            const area = byId.get(e.areaId)
-            return (
-              <article key={e.id} className="log">
-                <div className="log-top">
-                  <span className="log-head">
-                    <Headline entry={e} currency={state.settings.currency} />
-                  </span>
-                  <ConfirmButton
-                    className="icon-btn"
-                    label="✕"
-                    ariaLabel="Delete entry"
-                    confirmLabel="Delete?"
-                    onConfirm={() => dispatch({ type: 'removeLog', id: e.id })}
-                  />
-                </div>
-                {e.text && <p className="log-text">{e.text}</p>}
-                {area && (
-                  <span className="tag">
-                    <Dot color={area.color} />
-                    {area.name}
-                  </span>
-                )}
-              </article>
-            )
-          })}
-        </section>
+        <Section key={g.date} title={formatDay(g.date)}>
+          <List hasDividers>
+            {g.entries.map((e) => (
+              <ListItem
+                key={e.id}
+                label={headline(e, currency)}
+                description={e.text || undefined}
+                endContent={
+                  <HStack gap={1} vAlign="center">
+                    {e.kind === 'trade' && (
+                      <Badge variant={e.trade.followedPlan ? 'success' : 'error'} label={e.trade.followedPlan ? 'Followed plan' : 'Broke plan'} />
+                    )}
+                    <AreaTag area={byId.get(e.areaId)} />
+                    <ConfirmButton size="sm" label="Delete" confirmLabel="Delete?" onConfirm={() => dispatch({ type: 'removeLog', id: e.id })} />
+                  </HStack>
+                }
+              />
+            ))}
+          </List>
+        </Section>
       ))}
 
       {adding && <LogForm onClose={() => setAdding(false)} />}
-    </div>
+    </VStack>
   )
 }

@@ -1,27 +1,30 @@
-import type { Rule } from '../../core/types'
+import { HStack } from '@astryxdesign/core/HStack'
+import { Text } from '@astryxdesign/core/Text'
+import { ToggleButton, ToggleButtonGroup } from '@astryxdesign/core/ToggleButton'
+import { VStack } from '@astryxdesign/core/VStack'
+import type { Area, Rule } from '../../core/types'
 import { useStore } from '../store'
-import { Dot } from './ui'
+import { AreaTag } from './ui'
 
-/** Kept / broken toggle for one playbook rule on one day. Tapping the active choice clears it. */
-export function RuleCheck({ rule, color }: { rule: Rule; color: string }) {
+/** Kept / broken toggle for one playbook rule on one day. Pressing the active choice again clears it. */
+export function RuleCheck({ rule, area }: { rule: Rule; area: Area | undefined }) {
   const { state, dispatch, today } = useStore()
   const current = state.ruleChecks[today]?.[rule.id]
 
-  const set = (kept: boolean) =>
-    dispatch({ type: 'setRuleCheck', date: today, ruleId: rule.id, kept: current === kept ? null : kept })
+  const value = current === true ? 'kept' : current === false ? 'broke' : null
+  const onChange = (next: string | null) =>
+    dispatch({ type: 'setRuleCheck', date: today, ruleId: rule.id, kept: next === null ? null : next === 'kept' })
 
   return (
-    <div className="rule">
-      <Dot color={color} />
-      <span className="rule-text">{rule.text}</span>
-      <div className="seg" role="group" aria-label={`Did you keep: ${rule.text}`}>
-        <button className={current === true ? 'on good' : ''} aria-pressed={current === true} onClick={() => set(true)}>
-          Kept
-        </button>
-        <button className={current === false ? 'on bad' : ''} aria-pressed={current === false} onClick={() => set(false)}>
-          Broke
-        </button>
-      </div>
-    </div>
+    <VStack gap={1.5} paddingBlock={2}>
+      <Text>{rule.text}</Text>
+      <HStack justify="between" vAlign="center" gap={2}>
+        <AreaTag area={area} />
+        <ToggleButtonGroup label={`Did you keep: ${rule.text}`} size="sm" type="single" value={value} onChange={onChange}>
+          <ToggleButton value="kept" label="Kept" />
+          <ToggleButton value="broke" label="Broke" />
+        </ToggleButtonGroup>
+      </HStack>
+    </VStack>
   )
 }

@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { z } from 'zod'
+import { Button } from '@astryxdesign/core/Button'
+import { Code } from '@astryxdesign/core/Code'
+import { Heading } from '@astryxdesign/core/Heading'
+import { HStack } from '@astryxdesign/core/HStack'
+import { List, ListItem } from '@astryxdesign/core/List'
+import { StackItem } from '@astryxdesign/core/Stack'
+import { Text } from '@astryxdesign/core/Text'
+import { VStack } from '@astryxdesign/core/VStack'
 import { ConfirmButton, Empty } from './ui'
 
 const connectionSchema = z.object({
@@ -94,57 +102,53 @@ export function AiConnections({ connectorUrl, getToken, onRefresh }: AiConnectio
   }
 
   return (
-    <div className="stack">
-      <p className="muted small">
+    <VStack gap={3}>
+      <Text color="secondary">
         Use Level Up from Claude, ChatGPT or any AI app that supports custom connectors (MCP). Add this URL as a connector, sign in
         with your Level Up email, and the AI can see your schedule, tick things off and update your goals.
-      </p>
-      <div className="copy-row">
-        <code className="url" aria-label="Connector URL">
-          {mcpUrl}
-        </code>
-        <button className="chip" onClick={copy}>
-          Copy
-        </button>
-      </div>
+      </Text>
+      <HStack gap={2} vAlign="center">
+        <StackItem size="fill">
+          <Code aria-label="Connector URL">{mcpUrl}</Code>
+        </StackItem>
+        <Button size="sm" variant="secondary" label="Copy" onClick={copy} />
+      </HStack>
 
-      <h3 className="mini-head">Connected apps</h3>
-      {connections === null && !message && <p className="muted small">Loading…</p>}
+      <Heading level={3}>Connected apps</Heading>
+      {connections === null && !message && <Text color="secondary">Loading…</Text>}
       {connections?.length === 0 && <Empty>No AI apps connected yet.</Empty>}
-      {connections?.map((c) => (
-        <div key={c.clientId} className="list-item">
-          <span className="grow">
-            <strong>{c.clientName}</strong>
-            <span className="muted small"> · {c.lastUsedAt ? `last used ${ago(c.lastUsedAt)}` : `connected ${ago(c.connectedAt)}`}</span>
-          </span>
-          <ConfirmButton className="chip" label="Disconnect" confirmLabel="Tap to confirm" onConfirm={() => void disconnect(c)} />
-        </div>
-      ))}
+      {connections && connections.length > 0 && (
+        <List hasDividers>
+          {connections.map((c) => (
+            <ListItem
+              key={c.clientId}
+              label={c.clientName}
+              description={c.lastUsedAt ? `last used ${ago(c.lastUsedAt)}` : `connected ${ago(c.connectedAt)}`}
+              endContent={<ConfirmButton size="sm" label="Disconnect" confirmLabel="Tap to confirm" onConfirm={() => void disconnect(c)} />}
+            />
+          ))}
+        </List>
+      )}
 
       {activity.length > 0 && (
         <>
-          <h3 className="mini-head">Recent AI activity</h3>
-          <ul className="activity">
+          <Heading level={3}>Recent AI activity</Heading>
+          <List hasDividers density="compact">
             {activity.map((a, i) => (
-              <li key={`${a.at}-${i}`}>
-                <span>{a.summary}</span>
-                <span className="muted small">
-                  {a.clientName} · {ago(a.at)}
-                </span>
-              </li>
+              <ListItem key={`${a.at}-${i}`} label={a.summary} description={`${a.clientName} · ${ago(a.at)}`} />
             ))}
-          </ul>
+          </List>
         </>
       )}
 
-      <button className="btn ghost" onClick={() => void load()}>
-        Refresh
-      </button>
+      <HStack>
+        <Button variant="ghost" size="sm" label="Refresh" onClick={() => void load()} />
+      </HStack>
       {message && (
-        <p className="muted small" role="status">
+        <Text color="secondary" role="status">
           {message}
-        </p>
+        </Text>
       )}
-    </div>
+    </VStack>
   )
 }

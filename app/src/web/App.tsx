@@ -1,23 +1,31 @@
-import { useEffect, useState } from 'react'
-import { Areas } from './screens/Areas'
-import { Insights } from './screens/Insights'
-import { Journal } from './screens/Journal'
-import { Settings } from './screens/Settings'
+import { AppShell } from '@astryxdesign/core/AppShell'
+import { Tab, TabList } from '@astryxdesign/core/TabList'
+import { TopNav, TopNavHeading } from '@astryxdesign/core/TopNav'
+import { VStack } from '@astryxdesign/core/VStack'
+import { Spinner } from '@astryxdesign/core/Spinner'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Today } from './screens/Today'
 
+// Today is the landing screen; the rest load on first visit to keep startup light.
+const Areas = lazy(() => import('./screens/Areas').then((m) => ({ default: m.Areas })))
+const Journal = lazy(() => import('./screens/Journal').then((m) => ({ default: m.Journal })))
+const Insights = lazy(() => import('./screens/Insights').then((m) => ({ default: m.Insights })))
+const Settings = lazy(() => import('./screens/Settings').then((m) => ({ default: m.Settings })))
+
 const TABS = [
-  { key: 'today', label: 'Today', icon: '◉', Screen: Today },
-  { key: 'areas', label: 'Areas', icon: '▦', Screen: Areas },
-  { key: 'journal', label: 'Journal', icon: '✎', Screen: Journal },
-  { key: 'insights', label: 'Insights', icon: '▲', Screen: Insights },
-  { key: 'prefs', label: 'Settings', icon: '⚙', Screen: Settings },
+  { key: 'today', label: 'Today', Screen: Today },
+  { key: 'areas', label: 'Areas', Screen: Areas },
+  { key: 'journal', label: 'Journal', Screen: Journal },
+  { key: 'insights', label: 'Insights', Screen: Insights },
+  { key: 'prefs', label: 'Settings', Screen: Settings },
 ] as const
 
 type TabKey = (typeof TABS)[number]['key']
 
+const isTab = (key: string): key is TabKey => TABS.some((t) => t.key === key)
 const fromHash = (): TabKey => {
   const key = window.location.hash.replace('#', '')
-  return TABS.find((t) => t.key === key)?.key ?? 'today'
+  return isTab(key) ? key : 'today'
 }
 
 export function App() {
@@ -29,7 +37,8 @@ export function App() {
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
 
-  const go = (key: TabKey) => {
+  const go = (key: string) => {
+    if (!isTab(key)) return
     window.location.hash = key
     setTab(key)
     window.scrollTo?.({ top: 0 })
@@ -38,25 +47,22 @@ export function App() {
   const { Screen } = TABS.find((t) => t.key === tab) ?? TABS[0]
 
   return (
-    <div className="app">
-      <div className="topbar">
-        <span className="logo">
-          Level<span>Up</span>
-        </span>
-      </div>
-      <main>
-        <Screen />
-      </main>
-      <nav className="tabbar" aria-label="Main">
-        {TABS.map((t) => (
-          <button key={t.key} className={tab === t.key ? 'on' : ''} aria-current={tab === t.key ? 'page' : undefined} onClick={() => go(t.key)}>
-            <span className="tab-icon" aria-hidden>
-              {t.icon}
-            </span>
-            <span>{t.label}</span>
-          </button>
-        ))}
-      </nav>
-    </div>
+    <AppShell
+      height="auto"
+      contentPadding={4}
+      variant="section"
+      topNav={<TopNav label="Level Up" heading={<TopNavHeading heading="Level Up" subheading="Follow your system" />} />}
+    >
+      <VStack gap={6} maxWidth={720} width="100%">
+        <TabList value={tab} onChange={go} overflow="auto" aria-label="Main">
+          {TABS.map((t) => (
+            <Tab key={t.key} value={t.key} label={t.label} />
+          ))}
+        </TabList>
+        <Suspense fallback={<Spinner label="Loading" />}>
+          <Screen />
+        </Suspense>
+      </VStack>
+    </AppShell>
   )
 }
