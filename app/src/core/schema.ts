@@ -60,6 +60,14 @@ const logEntry = z.discriminatedUnion('kind', [
   }),
 ])
 
+const memory = z.object({
+  id,
+  text: z.string().min(1).max(1000),
+  areaId: id.optional(),
+  createdAt: z.number(),
+  source: z.string().max(60),
+})
+
 const settings = z.object({
   currency: z.string().min(1).max(4),
   streakThreshold: z.number().min(0).max(1),
@@ -77,6 +85,7 @@ export const appStateSchema = z.object({
   logs: z.array(logEntry),
   completions: z.record(dateKey, z.array(id)),
   ruleChecks: z.record(dateKey, z.record(id, z.boolean())),
+  memories: z.array(memory).max(500).default([]),
   settings: settings.default(DEFAULT_SETTINGS),
   startedOn: dateKey.optional(),
 })

@@ -139,3 +139,19 @@ describe('security review fixes', () => {
     await expect(provider.exchangeAuthorizationCode({ client_id: 'c1', redirect_uris: [] }, 'c')).rejects.toThrow(/Invalid/)
   })
 })
+
+describe('telemetry', () => {
+  it('logs one structured line per call without user ids or content', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+    const stores = { state: new MemoryStateStore(), activity: new MemoryActivityStore() }
+    await runTool(tool('remember'), { text: 'secret-ish preference' }, caller, stores, () => NOW)
+    await runTool(tool('complete_routine'), { routine: 'zzz' }, caller, stores, () => NOW)
+    const lines = info.mock.calls.map((c) => JSON.parse(String(c[0])))
+    expect(lines).toEqual([
+      { event: 'tool_call', tool: 'remember', client: 'c1', outcome: 'changed', attempts: 1, ms: 0 },
+      { event: 'tool_call', tool: 'complete_routine', client: 'c1', outcome: 'tool_error', attempts: 1, ms: 0 },
+    ])
+    expect(JSON.stringify(info.mock.calls)).not.toMatch(/u1|secret-ish/)
+    info.mockRestore()
+  })
+})

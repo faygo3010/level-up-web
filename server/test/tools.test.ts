@@ -4,7 +4,7 @@ import { TOOLS, ToolError, type ToolContext, type ToolResult } from '../src/tool
 
 const TODAY = '2026-11-24' // Tuesday
 let ids = 0
-const ctx: ToolContext = { today: TODAY, now: 1_700_000_000_000, newId: () => `id-${++ids}` }
+const ctx: ToolContext = { today: TODAY, now: 1_700_000_000_000, newId: () => `id-${++ids}`, source: 'Test Chat' }
 
 function call(name: string, args: Record<string, unknown>, state: AppState = starterState(TODAY)): ToolResult {
   const tool = TOOLS.find((t) => t.name === name)
@@ -34,6 +34,7 @@ describe('tool catalogue', () => {
       'archive_routine',
       'archive_rule',
       'delete_journal_entry',
+      'forget',
     ])
     expect(TOOLS.filter((t) => t.access === 'read').every((t) => !t.destructive)).toBe(true)
   })
@@ -216,5 +217,78 @@ describe('system editing tools', () => {
   it('every write records a short summary for the activity log', () => {
     expect(call('complete_routine', { routine: 'train' }).summary).toBe('Ticked off "Train" for 2026-11-24')
     expect(call('add_rule', { area: 'work', text: 'Inbox zero by 5' }).summary).toBe('Added rule "Inbox zero by 5" to Work')
+  })
+})
+
+describe('coach memory (awesome-ai-apps memory agents pattern)', () => {
+  it('remembers, recalls with a search, and forgets', () => {
+    const s = write('remember', { text: 'Overtrades after a losing morning', area: 'trading' })
+    expect(s.memories[0]).toMatchObject({ text: 'Overtrades after a losing morning', areaId: 'trading', source: 'Test Chat' })
+    const s2 = write('remember', { text: 'Prefers to train before work' }, s)
+    expect(call('recall', {}, s2).text).toMatch(/Prefers to train before work[\s\S]*Overtrades/)
+    const found = call('recall', { query: 'overtrade' }, s2).text
+    expect(found).toContain('Overtrades')
+    expect(found).not.toContain('Prefers')
+    const id = s2.memories[1]!.id
+    expect(write('forget', { id }, s2).memories).toHaveLength(1)
+    expect(() => call('forget', { id: 'nope' }, s2)).toThrow(/No memory/)
+  })
+
+  it('says so when there is nothing remembered yet', () => {
+    expect(call('recall', {}).text).toMatch(/Nothing saved yet/)
+  })
+})
+
+describe('get_weekly_review (study coach reflection pattern)', () => {
+  it('summarises the week: adherence, broken rules, missed routines, trading, budgets', () => {
+    let s = write('check_rule', { rule: 'stop loss', kept: false })
+    s = write('check_rule', { rule: 'stop loss', kept: false, date: '2026-11-23' }, s)
+    s = write('add_journal_entry', { kind: 'trade', symbol: 'ES', pnl: -50, followed_plan: false }, s)
+    s = write('log_goal_progress', { goal: 'discretionary', amount: 300 }, s)
+    const { text } = call('get_weekly_review', {}, s)
+    expect(text).toContain('Week 2026-11-18 to 2026-11-24')
+    expect(text).toMatch(/Most broken rules:\n- Stop loss set before entry: broken 2 times/)
+    expect(text).toMatch(/Most missed routines:/)
+    expect(text).toContain('Off-plan trades: 1')
+    expect(text).toMatch(/Discretionary spending: .*£300/)
+    expect(text).toMatch(/Questions to reflect on/)
+  })
+})
+
+describe('get_spending (expense tracker pattern)', () => {
+  it('answers spending questions by category and period', () => {
+    let s = write('add_journal_entry', { kind: 'money', amount: 12, category: 'food' })
+    s = write('add_journal_entry', { kind: 'money', amount: 30, category: 'food', date: '2026-11-02' }, s)
+    s = write('add_journal_entry', { kind: 'money', amount: 50, category: 'fuel' }, s)
+    s = write('add_journal_entry', { kind: 'money', amount: 999, category: 'food', date: '2026-10-30' }, s)
+    expect(call('get_spending', { category: 'food' }, s).text).toMatch(/food: £42 \(2 entries\)/)
+    const all = call('get_spending', {}, s).text
+    expect(all).toContain('2026-11-01 to 2026-11-24')
+    expect(all).toMatch(/Spent £92/)
+    expect(call('get_spending', { from: '2026-10-01', to: '2026-10-31' }, s).text).toMatch(/Spent £999/)
+  })
+})
+
+describe('pre_trade_check (pre-trade brief pattern, grounded in the user’s own rules)', () => {
+  it('clears the user when nothing is broken', () => {
+    const { text } = call('pre_trade_check', {})
+    expect(text).toMatch(/No rule says stop/)
+    expect(text).toContain('Max 1% account risk per trade')
+    expect(text).toContain('Not financial advice')
+  })
+
+  it('flags the daily loss limit from the rule text', () => {
+    let s = write('add_journal_entry', { kind: 'trade', symbol: 'ES', pnl: -40, followed_plan: true })
+    s = write('add_journal_entry', { kind: 'trade', symbol: 'NQ', pnl: -60, followed_plan: true }, s)
+    const { text } = call('pre_trade_check', {}, s)
+    expect(text).toMatch(/STOP: .*2 losses today/)
+    expect(text).toContain('Trades today: 2, losses 2, P&L -£100')
+  })
+
+  it('flags a rule already broken today and unfinished prep', () => {
+    const s = write('check_rule', { rule: 'stop loss', kept: false })
+    const { text } = call('pre_trade_check', {}, s)
+    expect(text).toMatch(/STOP: you marked "Stop loss set before entry" as broken today/)
+    expect(text).toMatch(/Not done yet: Pre-market prep & levels/)
   })
 })

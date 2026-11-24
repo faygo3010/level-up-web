@@ -1,4 +1,4 @@
-import type { AppState, Area, DateKey, Goal, GoalEntry, LogEntry, Routine, Rule, Settings } from './types'
+import type { AppState, Area, DateKey, Goal, GoalEntry, LogEntry, Memory, Routine, Rule, Settings } from './types'
 
 /** Collections that hold editable, archivable definitions of your system. */
 export interface Collections {
@@ -18,6 +18,8 @@ export type Action =
   | { type: 'removeGoalEntry'; id: string }
   | { type: 'addLog'; entry: LogEntry }
   | { type: 'removeLog'; id: string }
+  | { type: 'addMemory'; memory: Memory }
+  | { type: 'removeMemory'; id: string }
   | { type: 'updateSettings'; settings: Partial<Settings> }
   | { type: 'replace'; state: AppState }
 
@@ -86,6 +88,10 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, logs: [action.entry, ...state.logs] }
     case 'removeLog':
       return { ...state, logs: state.logs.filter((l) => l.id !== action.id) }
+    case 'addMemory':
+      return { ...state, memories: [action.memory, ...state.memories] }
+    case 'removeMemory':
+      return { ...state, memories: state.memories.filter((m) => m.id !== action.id) }
     case 'updateSettings':
       return { ...state, settings: { ...state.settings, ...action.settings } }
     case 'replace':

@@ -277,6 +277,38 @@ describe('Settings', () => {
   })
 })
 
+describe('Coach memory and calendar', () => {
+  it('shows what AI apps saved and lets you delete it', async () => {
+    await renderApp(
+      { ...starterState(today()), memories: [{ id: 'm1', text: 'Overtrades after a red morning', areaId: 'trading', createdAt: 1, source: 'Claude' }] },
+      '#prefs',
+    )
+    expect(screen.getByText('Overtrades after a red morning')).toBeInTheDocument()
+    expect(screen.getByText(/Trading · saved by Claude/)).toBeInTheDocument()
+    click('Delete')
+    click('Delete?')
+    expect(latest.memories).toEqual([])
+    expect(screen.getByText('Nothing saved yet.')).toBeInTheDocument()
+  })
+
+  it('exports routines as a calendar file', async () => {
+    let saved: Blob | undefined
+    URL.createObjectURL = vi.fn((b: Blob) => ((saved = b), 'blob:x'))
+    URL.revokeObjectURL = vi.fn()
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    await renderApp(undefined, '#prefs')
+    click('Add routines to my calendar (.ics)')
+    expect(saved?.type).toBe('text/calendar')
+    const text = await new Promise<string>((resolve) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result))
+      reader.readAsText(saved!)
+    })
+    expect(text).toContain('SUMMARY:Pre-market prep & levels (Trading)')
+    anchorClick.mockRestore()
+  })
+})
+
 describe('navigation', () => {
   it('switches tabs and keeps the tab in the URL hash', async () => {
     await renderApp()

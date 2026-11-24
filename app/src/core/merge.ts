@@ -42,6 +42,7 @@ export function mergeStates(primary: AppState, secondary: AppState): AppState {
     goalEntries: unionById(primary.goalEntries, secondary.goalEntries),
     rules: unionById(primary.rules, secondary.rules),
     logs: unionById(primary.logs, secondary.logs),
+    memories: unionById(primary.memories, secondary.memories),
     completions: unionCompletions(primary.completions, secondary.completions),
     ruleChecks: mergeRuleChecks(primary.ruleChecks, secondary.ruleChecks),
     settings: primary.settings,

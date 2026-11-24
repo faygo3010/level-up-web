@@ -19,6 +19,7 @@ export function emptyState(): AppState {
     logs: [],
     completions: {},
     ruleChecks: {},
+    memories: [],
     settings: DEFAULT_SETTINGS,
   }
 }

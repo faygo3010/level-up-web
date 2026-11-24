@@ -11,7 +11,9 @@ import { useState } from 'react'
 import { emptyState, starterState } from '../../core/defaults'
 import { parseState, serializeState } from '../../core/storage'
 import type { AppState } from '../../core/types'
+import { routinesToIcs } from '../../core/calendar'
 import { AccountSection } from '../components/AccountSection'
+import { CoachMemory } from '../components/CoachMemory'
 import { ConfirmButton, PageHeader, Section } from '../components/ui'
 import { useStore } from '../store'
 
@@ -28,8 +30,8 @@ export function readText(file: File): Promise<string> {
   })
 }
 
-function download(filename: string, contents: string) {
-  const url = URL.createObjectURL(new Blob([contents], { type: 'application/json' }))
+function download(filename: string, contents: string, type = 'application/json') {
+  const url = URL.createObjectURL(new Blob([contents], { type }))
   const a = document.createElement('a')
   a.href = url
   a.download = filename
@@ -85,6 +87,21 @@ export function Settings() {
       {saveFailed && <Banner status="error" title="Couldn't save to this browser's storage. Export a backup so you don't lose anything." />}
 
       <AccountSection />
+
+      <CoachMemory />
+
+      <Section title="Calendar">
+        <VStack gap={2} hAlign="stretch">
+          <Text color="secondary">
+            Download your routines as a calendar file and open it to add them to Google, Apple or Outlook calendar as repeating events.
+          </Text>
+          <Button
+            variant="secondary"
+            label="Add routines to my calendar (.ics)"
+            onClick={() => download('levelup-routines.ics', routinesToIcs(state, today), 'text/calendar')}
+          />
+        </VStack>
+      </Section>
 
       <Section title="Preferences">
         <FormLayout>

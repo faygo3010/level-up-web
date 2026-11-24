@@ -95,6 +95,17 @@ export type LogEntry =
   | (LogBase & { readonly kind: 'workout'; readonly workout: WorkoutDetails })
   | (LogBase & { readonly kind: 'money'; readonly money: MoneyDetails })
 
+/** Something an AI coach (or the user) saved to remember across chats. */
+export interface Memory {
+  readonly id: string
+  readonly text: string
+  /** Optional area it relates to. */
+  readonly areaId?: string
+  readonly createdAt: number
+  /** Who saved it, e.g. "Claude" or "You". */
+  readonly source: string
+}
+
 export interface Settings {
   readonly currency: string
   /** Day score (0-1) needed to count a day towards your streak. */
@@ -116,6 +127,8 @@ export interface AppState {
   readonly completions: Readonly<Record<DateKey, readonly string[]>>
   /** date -> ruleId -> kept (true) or broken (false); missing = not reviewed */
   readonly ruleChecks: Readonly<Record<DateKey, Readonly<Record<string, boolean>>>>
+  /** Notes connected AI apps saved to remember across chats. Visible and deletable in the app. */
+  readonly memories: readonly Memory[]
   readonly settings: Settings
   /** First day you used the system. Earlier days count as no data, not misses. */
   readonly startedOn?: DateKey

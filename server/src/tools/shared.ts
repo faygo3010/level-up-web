@@ -6,6 +6,8 @@ export interface ToolContext {
   readonly today: DateKey
   readonly now: number
   readonly newId: () => string
+  /** Name of the connected app making the call, recorded on saved memories. */
+  readonly source?: string
 }
 
 export interface ToolResult {
