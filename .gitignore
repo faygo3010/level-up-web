@@ -8,3 +8,6 @@ Thumbs.db
 # Node (in case tooling is added later)
 node_modules/
 npm-debug.log*
+
+# Toolkit sources pulled by scripts/fetch-toolkit.sh
+.toolkit-cache/
