@@ -2,6 +2,7 @@ import { useRef, useState, type ChangeEvent } from 'react'
 import { emptyState, starterState } from '../../core/defaults'
 import { parseState, serializeState } from '../../core/storage'
 import type { AppState } from '../../core/types'
+import { AccountSection } from '../components/AccountSection'
 import { ConfirmButton, Field, Section } from '../components/ui'
 import { useStore } from '../store'
 
@@ -54,7 +55,7 @@ export function Settings() {
     <div className="screen">
       <header className="hero-head">
         <h1>Settings</h1>
-        <p className="sub">Everything stays on this device. No account, no cloud.</p>
+        <p className="sub">Your data lives on this device. Signing in is optional and adds sync.</p>
       </header>
 
       {saveFailed && (
@@ -62,6 +63,8 @@ export function Settings() {
           Couldn't save to this browser's storage. Export a backup so you don't lose anything.
         </p>
       )}
+
+      <AccountSection />
 
       <Section title="Preferences">
         <div className="form">

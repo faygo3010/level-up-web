@@ -846,3 +846,8 @@ h2 {
     transition: none !important;
   }
 }
+.btn:disabled,
+.field input:disabled {
+  opacity: 0.55;
+  cursor: default;
+}

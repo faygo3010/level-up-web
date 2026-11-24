@@ -1,2 +1,5 @@
 dist/
 coverage/
+.env
+.env.local
+.env.*.local
