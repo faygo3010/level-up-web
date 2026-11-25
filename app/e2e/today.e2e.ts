@@ -1,18 +1,31 @@
 import { expect, test } from './fixtures'
 
-/** "3 of 13 done. 10 left." -> { done: 3, total: 13 } (totals depend on the weekday, so read them rather than hard-code). */
+/**
+ * "2 of 7 routines done · 1 of 5 rules kept." -> counts. Totals depend on the
+ * weekday, so read them rather than hard-code. Only the visible line is read
+ * (a screen-reader copy of it also lives in the page).
+ */
 async function progress(page: import('@playwright/test').Page) {
-  const line = page.getByText(/^\d+ of \d+ done\./)
+  const line = page.getByText(/routines done/).filter({ visible: true })
   await expect(line).toBeVisible()
-  const [, done, total] = (await line.textContent())!.match(/^(\d+) of (\d+) done/)!
-  return { done: Number(done), total: Number(total), line }
+  const text = (await line.textContent())!
+  const [, routines, routinesTotal] = text.match(/(?:All )?(\d+)(?: of (\d+))? routines done/)!
+  const [, rules, rulesTotal] = text.match(/(\d+) of (\d+) rules kept/)!
+  const total = Number(routinesTotal ?? routines)
+  return { routines: Number(text.startsWith('All') ? total : routines), routinesTotal: total, rules: Number(rules), rulesTotal: Number(rulesTotal) }
 }
+
+const summary = (page: import('@playwright/test').Page, routines: number, routinesTotal: number, rules: number, rulesTotal: number) =>
+  expect(page.getByText(`${routines} of ${routinesTotal} routines done · ${rules} of ${rulesTotal} rules kept.`, { exact: false }).filter({ visible: true })).toBeVisible()
 
 test.describe('Morning check-in', () => {
   test('ticks routines and reviews rules, and it all survives a reload', async ({ app, page }) => {
     await app.open('today')
     const before = await progress(page)
-    expect(before.done).toBe(0)
+    expect(before.routines).toBe(0)
+    expect(before.rules).toBe(0)
+    const T = before.routinesTotal
+    const R = before.rulesTotal
 
     // Every-day routines, so the test holds on any weekday.
     const steps = page.getByRole('checkbox', { name: '10k steps' })
@@ -20,7 +33,7 @@ test.describe('Morning check-in', () => {
     await steps.check()
     await spending.check()
     await expect(steps).toBeChecked()
-    await expect(page.getByText(`2 of ${before.total} done. ${before.total - 2} left.`)).toBeVisible()
+    await summary(page, 2, T, 0, R)
 
     const risk = page.getByRole('group', { name: 'Did you keep: Max 1% account risk per trade' })
     const stop = page.getByRole('group', { name: 'Did you keep: Stop loss set before entry' })
@@ -28,23 +41,23 @@ test.describe('Morning check-in', () => {
     await stop.getByRole('button', { name: 'Broke' }).click()
     await expect(risk.getByRole('button', { name: 'Kept' })).toHaveAttribute('aria-pressed', 'true')
     await expect(stop.getByRole('button', { name: 'Broke' })).toHaveAttribute('aria-pressed', 'true')
-    // A kept rule counts toward the day; a broken one does not.
-    await expect(page.getByText(`3 of ${before.total} done. ${before.total - 3} left.`)).toBeVisible()
+    // A kept rule counts; a broken one does not, and shows as broken.
+    await summary(page, 2, T, 1, R)
+    await expect(page.getByText('Broken', { exact: true })).toBeVisible()
 
     // Unticking is reversible.
     await steps.uncheck()
-    await expect(page.getByText(`2 of ${before.total} done.`)).toBeVisible()
+    await summary(page, 1, T, 1, R)
     await steps.check()
-    await expect(page.getByText(`3 of ${before.total} done.`)).toBeVisible()
+    await summary(page, 2, T, 1, R)
 
     await page.reload()
     await expect(app.heading()).toBeVisible()
     await expect(page.getByRole('checkbox', { name: '10k steps' })).toBeChecked()
     await expect(page.getByRole('checkbox', { name: 'Log spending' })).toBeChecked()
-    await expect(page.getByRole('checkbox', { name: 'Train', exact: true })).not.toBeChecked()
     await expect(risk.getByRole('button', { name: 'Kept' })).toHaveAttribute('aria-pressed', 'true')
     await expect(stop.getByRole('button', { name: 'Broke' })).toHaveAttribute('aria-pressed', 'true')
-    await expect(page.getByText(`3 of ${before.total} done. ${before.total - 3} left.`)).toBeVisible()
+    await summary(page, 2, T, 1, R)
 
     const stored = await app.stored()
     const [day] = Object.keys(stored.completions)

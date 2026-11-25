@@ -2,6 +2,7 @@ import { CheckboxList, CheckboxListItem } from '@astryxdesign/core/CheckboxList'
 import { Divider } from '@astryxdesign/core/Divider'
 import { ProgressBar } from '@astryxdesign/core/ProgressBar'
 import { Token } from '@astryxdesign/core/Token'
+import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
 import { currentStreak, dayScore, scheduledRoutines } from '../../core/adherence'
 import { formatDay } from '../../core/dates'
@@ -23,11 +24,14 @@ function greeting(hour: number): string {
   return 'Good evening.'
 }
 
-/** Plain, honest summary. No exclamation marks. */
-export function summaryLine(done: number, total: number, streak: number): string {
-  if (total === 0) return 'Nothing scheduled today. Rest is part of the system.'
-  const left = total - done
-  const base = left === 0 ? `All ${total} done.` : `${done} of ${total} done. ${left} left.`
+/** Plain, honest summary. No exclamation marks. Routines and rules are counted separately. */
+export function summaryLine(routinesDone: number, routinesTotal: number, rulesKept: number, rulesTotal: number, streak: number): string {
+  if (routinesTotal + rulesTotal === 0) return 'Nothing scheduled today. Rest is part of the system.'
+  const parts = [
+    routinesTotal > 0 ? (routinesDone === routinesTotal ? `All ${routinesTotal} routines done` : `${routinesDone} of ${routinesTotal} routines done`) : null,
+    rulesTotal > 0 ? `${rulesKept} of ${rulesTotal} rules kept` : null,
+  ].filter(Boolean)
+  const base = `${parts.join(' · ')}.`
   return streak > 0 ? `${base} Streak: ${streak} day${streak === 1 ? '' : 's'}.` : base
 }
 
@@ -40,6 +44,9 @@ export function Today() {
   const completed = state.completions[today] ?? []
   const rules = state.rules.filter((r) => !r.archived)
   const goals = state.goals.filter((g) => !g.archived)
+  const routinesDone = routines.filter((r) => completed.includes(r.id)).length
+  const rulesKept = rules.filter((r) => state.ruleChecks[today]?.[r.id] === true).length
+  const summary = summaryLine(routinesDone, routines.length, rulesKept, rules.length, streak)
 
   /** CheckboxList reports the full checked set; toggle whatever changed. */
   const onSlotChange = (slotIds: readonly string[], next: string[]) => {
@@ -51,12 +58,16 @@ export function Today() {
   return (
     <VStack gap={6}>
       <VStack gap={3}>
-        <PageHeader eyebrow={formatDay(today)} title={greeting(new Date().getHours())} subtitle={summaryLine(score.done, score.total, streak)} />
+        <PageHeader eyebrow={formatDay(today)} title={greeting(new Date().getHours())} subtitle={summary} />
+        {/* Announce progress changes to screen readers (the subtitle updates silently otherwise). */}
+        <VisuallyHidden role="status" aria-live="polite">
+          {summary}
+        </VisuallyHidden>
         <ProgressBar label="Today's progress" isLabelHidden value={score.done} max={Math.max(score.total, 1)} variant={score.total > 0 && score.done === score.total ? 'success' : 'accent'} />
       </VStack>
 
       {routines.length === 0 && rules.length === 0 && goals.length === 0 && (
-        <Empty title="Your system is empty">Add routines, rules and goals in Areas.</Empty>
+        <Empty title="Your system is empty" headingLevel={2}>Add routines, rules and goals in Areas.</Empty>
       )}
 
       {SLOTS.map(({ key, label }) => {

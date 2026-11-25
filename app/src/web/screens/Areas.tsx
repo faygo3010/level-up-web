@@ -8,13 +8,13 @@ import { ProgressBar } from '@astryxdesign/core/ProgressBar'
 import { Text } from '@astryxdesign/core/Text'
 import { Token } from '@astryxdesign/core/Token'
 import { VStack } from '@astryxdesign/core/VStack'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { areaAdherence } from '../../core/adherence'
 import { describeDays } from '../../core/format'
 import type { Area, Goal, Routine, Rule } from '../../core/types'
 import { AreaForm, GoalForm, RoutineForm, RuleForm } from '../components/forms'
 import { GoalRow } from '../components/GoalRow'
-import { Empty, PageHeader, Section, areaTone, pct, plural } from '../components/ui'
+import { Empty, PageHeader, Section, areaTone, focusFirst, focusPageTitle, pct, plural } from '../components/ui'
 import { useAreas, useStore } from '../store'
 
 type Editing =
@@ -30,6 +30,7 @@ const AddButton = ({ onClick, label }: { onClick: () => void; label: string }) =
 
 function AreaDetail({ area, onBack }: { area: Area; onBack: () => void }) {
   const { state } = useStore()
+  useEffect(() => focusPageTitle(), [area.id])
   const [editing, setEditing] = useState<Editing>(null)
   const close = () => setEditing(null)
   const routines = state.routines.filter((r) => r.areaId === area.id && !r.archived)
@@ -102,7 +103,13 @@ export function Areas() {
   const [adding, setAdding] = useState(false)
 
   const area = selected ? byId.get(selected) : undefined
-  if (area && !area.archived) return <AreaDetail area={area} onBack={() => setSelected(null)} />
+  const back = () => {
+    const name = byId.get(selected ?? '')?.name ?? ''
+    setSelected(null)
+    // Return focus to the card the user opened.
+    requestAnimationFrame(() => focusFirst(`[aria-label="Open ${name}"]`))
+  }
+  if (area && !area.archived) return <AreaDetail area={area} onBack={back} />
 
   return (
     <VStack gap={6}>
@@ -121,7 +128,7 @@ export function Areas() {
             <ClickableCard key={a.id} label={`Open ${a.name}`} onClick={() => setSelected(a.id)} padding={4}>
               <VStack gap={2}>
                 <HStack justify="between" vAlign="center">
-                  <Heading level={3}>
+                  <Heading level={2}>
                     {a.icon} {a.name}
                   </Heading>
                   <Token label={`${pct(week)} this week`} color={areaTone(a.color)} size="sm" />

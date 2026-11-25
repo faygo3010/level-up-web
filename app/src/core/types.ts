@@ -18,6 +18,9 @@ export type GoalDirection = 'atLeast' | 'atMost'
 
 export type LogKind = 'note' | 'trade' | 'workout' | 'money'
 
+/** What a goal can count automatically from the journal (in its own area). */
+export type GoalTrack = 'spending' | 'income' | 'workouts' | 'workoutMinutes' | 'trades' | 'tradePnl'
+
 export interface Area {
   readonly id: string
   readonly name: string
@@ -34,6 +37,8 @@ export interface Routine {
   readonly days: readonly Weekday[]
   readonly timeOfDay: TimeOfDay
   readonly archived: boolean
+  /** Logging this kind of journal entry in the same area ticks the routine off. */
+  readonly completedBy?: LogKind
 }
 
 /** A measurable target with a progress bar. */
@@ -46,6 +51,8 @@ export interface Goal {
   readonly unit: string
   readonly direction: GoalDirection
   readonly archived: boolean
+  /** Also count matching journal entries in this goal's area, so nothing is typed twice. */
+  readonly tracks?: GoalTrack
 }
 
 export interface GoalEntry {
@@ -113,6 +120,8 @@ export interface Settings {
   readonly weekStartsOn: 0 | 1
   /** IANA time zone, so connected AI apps know what "today" means for you. */
   readonly timeZone?: string
+  /** When the user last exported a backup (ms since epoch). */
+  readonly lastBackupAt?: number
 }
 
 export interface AppState {

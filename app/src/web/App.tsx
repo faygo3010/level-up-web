@@ -44,7 +44,11 @@ export function App() {
     window.scrollTo?.({ top: 0 })
   }
 
-  const { Screen } = TABS.find((t) => t.key === tab) ?? TABS[0]
+  const { Screen, label } = TABS.find((t) => t.key === tab) ?? TABS[0]
+
+  useEffect(() => {
+    document.title = `${label} · Level Up`
+  }, [label])
 
   return (
     <AppShell
@@ -53,7 +57,8 @@ export function App() {
       variant="section"
       topNav={<TopNav label="Level Up" heading={<TopNavHeading heading="Level Up" subheading="Follow your system" />} />}
     >
-      <VStack gap={6} maxWidth={720} width="100%">
+      <VStack hAlign="center">
+        <VStack gap={6} maxWidth={720} width="100%">
         <TabList value={tab} onChange={go} overflow="auto" aria-label="Main">
           {TABS.map((t) => (
             <Tab key={t.key} value={t.key} label={t.label} />
@@ -62,6 +67,7 @@ export function App() {
         <Suspense fallback={<Spinner label="Loading" />}>
           <Screen />
         </Suspense>
+        </VStack>
       </VStack>
     </AppShell>
   )

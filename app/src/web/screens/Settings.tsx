@@ -39,6 +39,12 @@ function download(filename: string, contents: string, type = 'application/json')
   URL.revokeObjectURL(url)
 }
 
+export function backupAge(at: number | undefined, now = Date.now()): string {
+  if (!at) return 'No backup exported yet.'
+  const days = Math.floor((now - at) / 86_400_000)
+  return days === 0 ? 'Last backup: today.' : `Last backup: ${days} day${days === 1 ? '' : 's'} ago.`
+}
+
 export function Settings() {
   const { state, dispatch, today, saveFailed } = useStore()
   const [message, setMessage] = useState('')
@@ -69,6 +75,12 @@ export function Settings() {
     setPending(null)
     setFile(null)
     setMessage(note)
+  }
+
+  const exportBackup = () => {
+    download(`levelup-backup-${today}.json`, serializeState(state))
+    dispatch({ type: 'updateSettings', settings: { lastBackupAt: Date.now() } })
+    setMessage('Backup saved to your downloads.')
   }
 
   const copyBackup = async () => {
@@ -120,7 +132,7 @@ export function Settings() {
             ]}
           />
           <Slider
-            label="A day counts for your streak at"
+            label={`A day counts for your streak at ${Math.round(settings.streakThreshold * 100)}%`}
             min={50}
             max={100}
             step={5}
@@ -133,24 +145,36 @@ export function Settings() {
 
       <Section title="Your data">
         <VStack gap={2} hAlign="stretch">
-          <Button variant="secondary" label="Export backup (JSON)" onClick={() => download(`levelup-backup-${today}.json`, serializeState(state))} />
+          <Text color="secondary">{backupAge(settings.lastBackupAt)}</Text>
+          <Button variant="secondary" label="Export backup (JSON)" onClick={exportBackup} />
           <Button variant="secondary" label="Copy backup to clipboard" onClick={copyBackup} />
           <FileInput label="Import backup" accept=".json,application/json" value={file} onChange={onImport} />
           {pending && (
             <ConfirmButton variant="destructive" label="Replace all data" confirmLabel="Tap again to replace" onConfirm={() => replace(pending, 'Backup restored.')} />
           )}
-          <ConfirmButton label="Load starter system" confirmLabel="Tap again: replaces everything" onConfirm={() => replace(starterState(today), 'Starter system loaded.')} />
-          <ConfirmButton
-            variant="secondary"
-            label="Delete all data"
-            confirmLabel="Tap again to delete everything"
-            onConfirm={() => replace({ ...emptyState(), startedOn: today }, 'All data cleared.')}
-          />
           {message && (
             <Text color="secondary" role="status">
               {message}
             </Text>
           )}
+        </VStack>
+      </Section>
+
+      <Section title="Danger zone">
+        <VStack gap={2} hAlign="stretch">
+          <Text color="secondary">These replace everything on this device. Export a backup first.</Text>
+          <ConfirmButton
+            variant="destructive"
+            label="Load starter system"
+            confirmLabel="Tap again: replaces everything"
+            onConfirm={() => replace(starterState(today), 'Starter system loaded.')}
+          />
+          <ConfirmButton
+            variant="destructive"
+            label="Delete all data"
+            confirmLabel="Tap again to delete everything"
+            onConfirm={() => replace({ ...emptyState(), startedOn: today }, 'All data cleared.')}
+          />
         </VStack>
       </Section>
     </VStack>

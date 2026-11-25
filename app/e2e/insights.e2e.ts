@@ -14,7 +14,7 @@ test.describe('Insights', () => {
       await page.getByRole('button', { name: 'New entry' }).click()
       await app.sheet().getByLabel('Symbol').fill(symbol)
       await app.sheet().getByLabel('P&L').fill(pnl)
-      if (!followed) await app.sheet().getByRole('checkbox', { name: /I followed my plan/ }).uncheck()
+      await app.sheet().getByRole('radio', { name: followed ? 'Followed plan' : 'Broke plan' }).click()
       await app.save()
     }
 

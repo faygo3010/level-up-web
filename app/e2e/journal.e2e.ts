@@ -16,7 +16,7 @@ test.describe('Journal', () => {
     await expect(app.sheet().getByRole('alert').filter({ hasText: /P&L/ })).toBeVisible()
     await app.sheet().getByLabel('Symbol').fill('es')
     await app.sheet().getByLabel('P&L').fill('-120')
-    await app.sheet().getByRole('checkbox', { name: /I followed my plan/ }).uncheck()
+    await app.sheet().getByRole('radio', { name: 'Broke plan' }).click()
     await app.save()
 
     await newEntry(app, 'Money')
@@ -30,11 +30,11 @@ test.describe('Journal', () => {
     await app.sheet().getByLabel('Minutes').fill('40')
     await app.save()
 
-    const trade = page.getByRole('listitem').filter({ hasText: 'ES long · -£120' })
-    const spend = page.getByRole('listitem').filter({ hasText: '-£25 · food' })
+    const trade = page.getByRole('listitem').filter({ hasText: 'ES long' }).filter({ hasText: '-£120' })
+    const spend = page.getByRole('listitem').filter({ hasText: 'food' }).filter({ hasText: '-£25' })
     const run = page.getByRole('listitem').filter({ hasText: 'Run · 40 min' })
     await expect(trade).toBeVisible()
-    await expect(trade.getByText('Broke plan')).toBeVisible()
+    await expect(trade.getByText(/Broke plan · Trading/)).toBeVisible()
     await expect(spend).toBeVisible()
     await expect(run).toBeVisible()
 
@@ -47,14 +47,14 @@ test.describe('Journal', () => {
     await expect(spend).toBeVisible()
     await expect(trade).toBeHidden()
     await filter.getByRole('radio', { name: 'All' }).click()
-    await expect(page.getByRole('button', { name: 'Delete', exact: true })).toHaveCount(3)
+    await expect(page.getByRole('button', { name: /^Delete .* entry$/ })).toHaveCount(3)
 
     // First tap only arms the button; nothing is removed yet.
-    await spend.getByRole('button', { name: 'Delete', exact: true }).click()
-    await expect(spend.getByRole('button', { name: 'Delete?' })).toBeVisible()
-    await expect(page.getByRole('button', { name: /^Delete\??$/ })).toHaveCount(3)
+    await spend.getByRole('button', { name: /^Delete .* entry$/ }).click()
+    await expect(spend.getByRole('button', { name: /^Delete\? / })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^Delete\??( .* entry)?$/ })).toHaveCount(3)
     expect((await app.stored()).logs).toHaveLength(3)
-    await spend.getByRole('button', { name: 'Delete?' }).click()
+    await spend.getByRole('button', { name: /^Delete\? / }).click()
     await expect(spend).toHaveCount(0)
     await expect(trade).toBeVisible()
     await expect(run).toBeVisible()

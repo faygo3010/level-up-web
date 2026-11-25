@@ -1,4 +1,3 @@
-import { CheckboxInput } from '@astryxdesign/core/CheckboxInput'
 import { DateInput } from '@astryxdesign/core/DateInput'
 import { NumberInput } from '@astryxdesign/core/NumberInput'
 import { SegmentedControl, SegmentedControlItem } from '@astryxdesign/core/SegmentedControl'
@@ -40,7 +39,8 @@ export function LogForm({ onClose }: { onClose: () => void }) {
   const [symbol, setSymbol] = useState('')
   const [side, setSide] = useState<'long' | 'short'>('long')
   const [pnl, setPnl] = useState<number | undefined>()
-  const [followedPlan, setFollowedPlan] = useState(true)
+  // No default: a losing off-plan trade must never be saved as on-plan by accident.
+  const [followedPlan, setFollowedPlan] = useState<'yes' | 'no' | ''>('')
   const [activity, setActivity] = useState('')
   const [minutes, setMinutes] = useState<number | undefined>()
   const [amount, setAmount] = useState<number | undefined>()
@@ -62,7 +62,8 @@ export function LogForm({ onClose }: { onClose: () => void }) {
       case 'trade': {
         const p = finite(pnl)
         if (p === null) return 'Enter the P&L (negative for a loss).'
-        return { ...base, kind, trade: { symbol: symbol.trim().toUpperCase().slice(0, 20), side, pnl: p, followedPlan } }
+        if (followedPlan === '') return 'Say whether you followed your plan on this trade.'
+        return { ...base, kind, trade: { symbol: symbol.trim().toUpperCase().slice(0, 20), side, pnl: p, followedPlan: followedPlan === 'yes' } }
       }
       case 'workout': {
         const m = finite(minutes)
@@ -106,7 +107,10 @@ export function LogForm({ onClose }: { onClose: () => void }) {
             ]}
           />
           <NumberInput label="P&L" value={pnl} onChange={setPnl} placeholder="-120 or 250" />
-          <CheckboxInput label="I followed my plan and rules on this trade" value={followedPlan} onChange={setFollowedPlan} />
+          <SegmentedControl label="Did you follow your plan and rules?" value={followedPlan} onChange={(v) => setFollowedPlan(v as 'yes' | 'no')} layout="fill">
+            <SegmentedControlItem value="yes" label="Followed plan" />
+            <SegmentedControlItem value="no" label="Broke plan" />
+          </SegmentedControl>
         </>
       )}
 

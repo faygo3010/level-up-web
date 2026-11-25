@@ -17,6 +17,7 @@ const routine = z.object({
   days: z.array(weekday).max(7),
   timeOfDay: z.enum(['morning', 'anytime', 'evening']),
   archived: z.boolean(),
+  completedBy: z.enum(['note', 'trade', 'workout', 'money']).optional(),
 })
 
 const goal = z.object({
@@ -28,6 +29,7 @@ const goal = z.object({
   unit: z.string().max(32),
   direction: z.enum(['atLeast', 'atMost']),
   archived: z.boolean(),
+  tracks: z.enum(['spending', 'income', 'workouts', 'workoutMinutes', 'trades', 'tradePnl']).optional(),
 })
 
 const goalEntry = z.object({ id, goalId: id, date: dateKey, value: z.number().finite() })
@@ -77,6 +79,7 @@ const settings = z.object({
   streakThreshold: z.number().min(0).max(1),
   weekStartsOn: z.union([z.literal(0), z.literal(1)]),
   timeZone: z.string().max(64).optional(),
+  lastBackupAt: z.number().optional(),
 })
 
 export const appStateSchema = z.object({

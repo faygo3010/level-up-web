@@ -1,9 +1,21 @@
+import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures'
+
+/**
+ * Astryx's ClickableCard exposes a visually hidden "Open <area>" button for
+ * keyboard and screen readers; pointer users tap the card's content. Assert the
+ * accessible button exists, then tap the card heading like a user would.
+ */
+async function openArea(page: Page, name: string) {
+  await expect(page.getByRole('button', { name: `Open ${name}` })).toBeAttached()
+  await page.getByRole('heading', { level: 3, name: new RegExp(`${name}$`) }).click()
+  await expect(page.getByRole('heading', { level: 1, name: new RegExp(name) })).toBeVisible()
+}
 
 test.describe('Areas', () => {
   test('adds a routine with chosen days in a bottom sheet, edits it, then archives it', async ({ app, page }) => {
     await app.open('areas')
-    await page.getByRole('button', { name: 'Open Trading' }).click()
+    await openArea(page, 'Trading')
     await expect(page.getByRole('heading', { level: 1, name: /Trading/ })).toBeVisible()
 
     await page.getByRole('button', { name: 'Add routine' }).click()
@@ -59,7 +71,7 @@ test.describe('Areas', () => {
     await app.save()
 
     await expect(page.getByRole('button', { name: /^Open / })).toHaveCount(5)
-    await page.getByRole('button', { name: 'Open Health' }).click()
+    await openArea(page, 'Health')
     await expect(page.getByRole('heading', { level: 1, name: /Health/ })).toBeVisible()
     await expect(page.getByRole('heading', { name: /No routines yet/ })).toBeVisible()
 

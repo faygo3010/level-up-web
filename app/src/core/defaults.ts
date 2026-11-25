@@ -30,14 +30,14 @@ const EVERY_DAY: Weekday[] = [0, 1, 2, 3, 4, 5, 6]
 
 const area = (id: string, name: string, icon: string, color: string): Area => ({ id, name, icon, color, archived: false })
 
-const routine = (id: string, areaId: string, title: string, timeOfDay: Routine['timeOfDay'], days: Weekday[]): Routine => ({
-  id,
-  areaId,
-  title,
-  timeOfDay,
-  days,
-  archived: false,
-})
+const routine = (
+  id: string,
+  areaId: string,
+  title: string,
+  timeOfDay: Routine['timeOfDay'],
+  days: Weekday[],
+  completedBy?: Routine['completedBy'],
+): Routine => ({ id, areaId, title, timeOfDay, days, archived: false, ...(completedBy && { completedBy }) })
 
 const rule = (id: string, areaId: string, text: string): Rule => ({ id, areaId, text, archived: false })
 
@@ -49,7 +49,8 @@ const goal = (
   target: number,
   unit: string,
   direction: Goal['direction'] = 'atLeast',
-): Goal => ({ id, areaId, title, period, target, unit, direction, archived: false })
+  tracks?: Goal['tracks'],
+): Goal => ({ id, areaId, title, period, target, unit, direction, archived: false, ...(tracks && { tracks }) })
 
 /**
  * A starter system across the four core areas. Everything is editable; it
@@ -69,11 +70,11 @@ export function starterState(today: DateKey): AppState {
       routine('work-plan', 'work', 'Plan top 3 priorities', 'morning', WEEKDAYS),
       routine('work-deep', 'work', '90 min deep work block', 'anytime', WEEKDAYS),
       routine('work-shutdown', 'work', 'Shutdown review', 'evening', WEEKDAYS),
-      routine('fit-train', 'fitness', 'Train', 'morning', [1, 2, 4, 5]),
+      routine('fit-train', 'fitness', 'Train', 'morning', [1, 2, 4, 5], 'workout'),
       routine('fit-steps', 'fitness', '10k steps', 'anytime', EVERY_DAY),
       routine('trade-prep', 'trading', 'Pre-market prep & levels', 'morning', WEEKDAYS),
-      routine('trade-journal', 'trading', 'Journal every trade', 'evening', WEEKDAYS),
-      routine('fin-log', 'finance', 'Log spending', 'evening', EVERY_DAY),
+      routine('trade-journal', 'trading', 'Journal every trade', 'evening', WEEKDAYS, 'trade'),
+      routine('fin-log', 'finance', 'Log spending', 'evening', EVERY_DAY, 'money'),
     ],
     rules: [
       rule('trade-risk', 'trading', 'Max 1% account risk per trade'),
@@ -83,9 +84,9 @@ export function starterState(today: DateKey): AppState {
       rule('work-phone', 'work', 'No phone during deep work'),
     ],
     goals: [
-      goal('g-train', 'fitness', 'Training sessions', 'weekly', 4, 'sessions'),
+      goal('g-train', 'fitness', 'Training sessions', 'weekly', 4, 'sessions', 'atLeast', 'workouts'),
       goal('g-deep', 'work', 'Deep work hours', 'weekly', 10, 'hours'),
-      goal('g-spend', 'finance', 'Discretionary spending', 'monthly', 400, '£', 'atMost'),
+      goal('g-spend', 'finance', 'Discretionary spending', 'monthly', 400, '£', 'atMost', 'spending'),
       goal('g-save', 'finance', 'Saved this month', 'monthly', 500, '£'),
     ],
   }

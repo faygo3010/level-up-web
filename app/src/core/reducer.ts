@@ -51,6 +51,17 @@ function updateCollection(state: AppState, name: CollectionName, fn: (items: rea
   return { ...state, [name]: fn(state[name] as readonly Item[]) }
 }
 
+/** Tick routines that this kind of entry completes (same area, scheduled that day). */
+function completeLinkedRoutines(state: AppState, entry: LogEntry): AppState {
+  const day = new Date(`${entry.date}T00:00:00Z`).getUTCDay()
+  const done = state.completions[entry.date] ?? []
+  const toTick = state.routines.filter(
+    (r) => !r.archived && r.completedBy === entry.kind && r.areaId === entry.areaId && r.days.includes(day as never) && !done.includes(r.id),
+  )
+  if (toTick.length === 0) return state
+  return { ...state, completions: { ...state.completions, [entry.date]: [...done, ...toTick.map((r) => r.id)] } }
+}
+
 function archiveArea(state: AppState, areaId: string): AppState {
   const inArea = <T extends { areaId: string; archived: boolean }>(items: readonly T[]): T[] =>
     items.map((i) => (i.areaId === areaId ? { ...i, archived: true } : i))
@@ -87,7 +98,7 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'removeGoalEntry':
       return { ...state, goalEntries: state.goalEntries.filter((e) => e.id !== action.id) }
     case 'addLog':
-      return { ...state, logs: [action.entry, ...state.logs] }
+      return completeLinkedRoutines({ ...state, logs: [action.entry, ...state.logs] }, action.entry)
     case 'updateLog':
       return { ...state, logs: state.logs.map((l) => (l.id === action.entry.id ? action.entry : l)) }
     case 'removeLog':

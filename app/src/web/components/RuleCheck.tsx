@@ -1,5 +1,6 @@
 import { HStack } from '@astryxdesign/core/HStack'
 import { Text } from '@astryxdesign/core/Text'
+import { Token } from '@astryxdesign/core/Token'
 import { ToggleButton, ToggleButtonGroup } from '@astryxdesign/core/ToggleButton'
 import { VStack } from '@astryxdesign/core/VStack'
 import type { Area, Rule } from '../../core/types'
@@ -19,7 +20,11 @@ export function RuleCheck({ rule, area }: { rule: Rule; area: Area | undefined }
     <VStack gap={1.5} paddingBlock={2}>
       <Text>{rule.text}</Text>
       <HStack justify="between" vAlign="center" gap={2}>
-        <AreaTag area={area} />
+        <HStack gap={1}>
+          <AreaTag area={area} />
+          {current === true && <Token label="Kept" color="green" size="sm" />}
+          {current === false && <Token label="Broken" color="red" size="sm" />}
+        </HStack>
         <ToggleButtonGroup label={`Did you keep: ${rule.text}`} size="sm" type="single" value={value} onChange={onChange}>
           <ToggleButton value="kept" label="Kept" />
           <ToggleButton value="broke" label="Broke" />

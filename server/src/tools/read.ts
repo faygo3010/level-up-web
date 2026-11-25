@@ -14,7 +14,7 @@ const PER: Record<Goal['period'], string> = { daily: 'day', weekly: 'week', mont
 const PERIOD_WORD: Record<Goal['period'], string> = { daily: 'today', weekly: 'this week', monthly: 'this month', yearly: 'this year' }
 
 export function goalLine(state: AppState, goal: Goal, date: DateKey): string {
-  const p = goalProgress(goal, state.goalEntries, date, state.settings.weekStartsOn)
+  const p = goalProgress(goal, state.goalEntries, date, state.settings.weekStartsOn, state.logs)
   const status = { done: 'done', onTrack: 'on track', behind: 'behind pace', over: 'OVER budget' }[p.status]
   const kind = goal.direction === 'atMost' ? ' (budget: stay under)' : ''
   return `${goal.title}: ${withUnit(p.current, '')} / ${withUnit(goal.target, goal.unit)} ${PERIOD_WORD[goal.period]}${kind}, ${status} (id: ${goal.id})`

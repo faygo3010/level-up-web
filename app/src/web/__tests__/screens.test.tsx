@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { starterState } from '../../core/defaults'
-import { today } from '../../core/dates'
+import { formatDay, today } from '../../core/dates'
 import { serializeState } from '../../core/storage'
 import type { AppState } from '../../core/types'
 import { App } from '../App'
@@ -148,10 +148,16 @@ describe('Journal', () => {
     type(/^Symbol/, 'es')
     type(/^P&L/, '-120')
     fireEvent.blur(field(/^P&L/))
-    fireEvent.click(screen.getByRole('checkbox', { name: /I followed my plan/ }))
+    save()
+    expect(sheetError()).toMatch(/followed your plan/)
+    pick('Broke plan')
     save()
     expect(latest.logs[0]).toMatchObject({ kind: 'trade', areaId: 'trading', trade: { symbol: 'ES', pnl: -120, followedPlan: false } })
-    expect(screen.getByText('Broke plan')).toBeInTheDocument()
+    expect(screen.getByText(/Broke plan · Trading/)).toBeInTheDocument()
+    expect(screen.getByText('-£120')).toBeInTheDocument()
+    // Logging a trade ticks the linked "Journal every trade" routine (on weekdays it is scheduled).
+    const weekday = new Date().getDay() >= 1 && new Date().getDay() <= 5
+    expect((latest.completions[today()] ?? []).includes('trade-journal')).toBe(weekday)
 
     click('New entry')
     pick('Workout')
@@ -171,6 +177,7 @@ describe('Journal', () => {
     type(/^Category/, 'Salary')
     save()
     expect(latest.logs[0]).toMatchObject({ kind: 'money', areaId: 'finance', money: { amount: 2000, category: 'salary' } })
+    expect(latest.completions[today()]).toContain('fin-log')
 
     click('New entry')
     pick('Note')
@@ -184,8 +191,8 @@ describe('Journal', () => {
     expect(screen.queryByText('Good focus today')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('radio', { name: 'All' }))
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0]!)
-    click('Delete?')
+    fireEvent.click(screen.getAllByRole('button', { name: /^Delete .* entry$/ })[0]!)
+    click(/^Delete\? /)
     expect(latest.logs).toHaveLength(3)
   })
 })
@@ -208,7 +215,11 @@ describe('Insights', () => {
     )
     expect(screen.getByText(/Breaking your rules cost £200 this month\. Following them made £300\./)).toBeInTheDocument()
     expect(screen.getByText('food')).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: /Daily adherence heatmap: 0 of the last 35 days/ }).children).toHaveLength(35)
+    expect(screen.getByRole('list', { name: 'Daily adherence, oldest first' }).children).toHaveLength(35)
+    expect(screen.getByRole('listitem', { name: new RegExp(`${formatDay(today())}: `) })).toBeInTheDocument()
+    // This week: logged spending also feeds the linked budget.
+    expect(screen.getByText('Spent').previousSibling?.textContent).toBe('£40')
+    expect(screen.getByText(/10% of Discretionary spending/)).toBeInTheDocument()
   })
 
   it('shows empty states with no data', async () => {
@@ -268,8 +279,11 @@ describe('Settings', () => {
     URL.revokeObjectURL = vi.fn()
     const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
     await renderApp(undefined, '#prefs')
+    expect(screen.getByText('No backup exported yet.')).toBeInTheDocument()
     click('Export backup (JSON)')
     expect(anchorClick).toHaveBeenCalled()
+    expect(screen.getByText('Last backup: today.')).toBeInTheDocument()
+    expect(latest.settings.lastBackupAt).toBeGreaterThan(0)
     await act(async () => click('Copy backup to clipboard'))
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('"version": 1'))
     expect(screen.getByText(/Backup copied/)).toBeInTheDocument()

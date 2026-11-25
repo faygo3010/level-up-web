@@ -1,5 +1,12 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
+import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures'
+
+/** Astryx's FileInput keeps its "Import backup" button visually hidden; pointer users tap the "Choose file" field. */
+async function chooseImportFile(page: Page) {
+  await expect(page.getByRole('button', { name: 'Import backup' })).toBeAttached()
+  await page.getByText('Choose file', { exact: true }).click()
+}
 
 test.describe('Settings: your data', () => {
   test('exports a backup, then imports it back to restore deleted data', async ({ app, page }, testInfo) => {
@@ -25,7 +32,7 @@ test.describe('Settings: your data', () => {
     await expect.poll(async () => (await app.stored()).areas).toHaveLength(0)
 
     const choosing = page.waitForEvent('filechooser')
-    await page.getByRole('button', { name: 'Import backup' }).click()
+    await chooseImportFile(page)
     await (await choosing).setFiles(backupPath)
     await expect(page.getByText('Backup checked. Tap "Replace all data" to restore it.')).toBeVisible()
     expect((await app.stored()).areas).toHaveLength(0)
@@ -42,9 +49,9 @@ test.describe('Settings: your data', () => {
   test('rejects a file that is not a backup', async ({ app, page }, testInfo) => {
     await app.open('prefs')
     const bogus = testInfo.outputPath('not-a-backup.json')
-    await import('node:fs/promises').then((fs) => fs.writeFile(bogus, 'not json'))
+    await writeFile(bogus, 'not json')
     const choosing = page.waitForEvent('filechooser')
-    await page.getByRole('button', { name: 'Import backup' }).click()
+    await chooseImportFile(page)
     await (await choosing).setFiles(bogus)
     await expect(page.getByText('File is not valid JSON.')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Replace all data' })).toHaveCount(0)

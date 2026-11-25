@@ -33,6 +33,23 @@ export function AreaTag({ area }: { area: Area | undefined }) {
 export const statusVariant = (status?: GoalStatus) =>
   status === 'behind' ? 'warning' : status === 'over' ? 'error' : status === 'done' ? 'success' : 'accent'
 
+export const PAGE_TITLE_ID = 'page-title'
+
+/** Move focus to the page heading after a view change, so keyboard and screen-reader users keep their place. */
+export function focusPageTitle() {
+  const h = document.getElementById(PAGE_TITLE_ID)
+  if (!h) return
+  h.setAttribute('tabindex', '-1')
+  h.focus()
+}
+
+/** Focus the first element matching a selector, falling back to the page heading. */
+export function focusFirst(selector: string) {
+  const el = document.querySelector<HTMLElement>(selector)
+  if (el) el.focus()
+  else focusPageTitle()
+}
+
 export function PageHeader({ eyebrow, title, subtitle, action }: { eyebrow?: string; title: string; subtitle?: string; action?: ReactNode }) {
   return (
     <HStack justify="between" vAlign="start" gap={3}>
@@ -43,7 +60,9 @@ export function PageHeader({ eyebrow, title, subtitle, action }: { eyebrow?: str
             {eyebrow}
           </Text>
         )}
-        <Heading level={1}>{title}</Heading>
+        <Heading level={1} id={PAGE_TITLE_ID}>
+          {title}
+        </Heading>
           {subtitle && <Text color="secondary">{subtitle}</Text>}
         </VStack>
       </StackItem>
@@ -64,8 +83,8 @@ export function Section({ title, action, children }: { title: string; action?: R
   )
 }
 
-export function Empty({ title, children }: { title?: string; children: string }) {
-  return <EmptyState title={title ?? children} description={title ? children : undefined} isCompact headingLevel={3} />
+export function Empty({ title, children, headingLevel = 3 }: { title?: string; children: string; headingLevel?: 2 | 3 }) {
+  return <EmptyState title={title ?? children} description={title ? children : undefined} isCompact headingLevel={headingLevel} />
 }
 
 export function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
@@ -107,12 +126,15 @@ export function ConfirmButton({
   onConfirm,
   variant = 'ghost',
   size = 'md',
+  ariaLabel,
 }: {
   label: string
   confirmLabel: string
   onConfirm: () => void
   variant?: 'secondary' | 'ghost' | 'destructive'
   size?: 'sm' | 'md'
+  /** Names what will be affected, e.g. "Delete ES long trade". */
+  ariaLabel?: string
 }) {
   const [armed, setArmed] = useState(false)
   useEffect(() => {
@@ -126,6 +148,7 @@ export function ConfirmButton({
       size={size}
       variant={armed ? 'destructive' : variant}
       label={armed ? confirmLabel : label}
+      {...(ariaLabel && { 'aria-label': armed ? `${confirmLabel} ${ariaLabel}` : ariaLabel })}
       onClick={() => {
         if (!armed) return setArmed(true)
         setArmed(false)

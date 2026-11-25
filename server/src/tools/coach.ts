@@ -143,7 +143,7 @@ function goalSections(state: AppState, end: DateKey): string[] {
       '',
       'Budgets:',
       ...budgets.map((g) => {
-        const p = goalProgress(g, state.goalEntries, end, state.settings.weekStartsOn)
+        const p = goalProgress(g, state.goalEntries, end, state.settings.weekStartsOn, state.logs)
         const pace = p.status === 'over' ? 'OVER' : p.status === 'behind' ? 'ahead of pace' : 'on pace'
         return `- ${g.title}: ${withUnit(p.current, g.unit)} of ${withUnit(g.target, g.unit)} used (${pace})`
       }),

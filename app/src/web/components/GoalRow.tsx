@@ -34,7 +34,7 @@ export function describeProgress(goal: Goal, p: GoalProgress): string {
 export function GoalRow({ goal }: { goal: Goal }) {
   const { state, dispatch, today } = useStore()
   const [value, setValue] = useState<number | null>(null)
-  const progress = goalProgress(goal, state.goalEntries, today, state.settings.weekStartsOn)
+  const progress = goalProgress(goal, state.goalEntries, today, state.settings.weekStartsOn, state.logs)
 
   const log = (amount: number | null) => {
     if (amount === null || !Number.isFinite(amount) || amount === 0) return
@@ -49,7 +49,7 @@ export function GoalRow({ goal }: { goal: Goal }) {
         max={goal.target || 1}
         hasValueLabel
         formatValueLabel={() => `${fmt(progress.current)} / ${withUnit(goal.target, goal.unit)}`}
-        variant={statusVariant(progress.status)}
+        variant={progress.current === 0 ? 'neutral' : statusVariant(progress.status)}
       />
       <HStack justify="between" vAlign="center" gap={2} wrap="wrap">
         <Text type="supporting" color={progress.status === 'behind' || progress.status === 'over' ? 'accent' : 'secondary'}>
