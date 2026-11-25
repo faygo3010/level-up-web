@@ -36,7 +36,8 @@ function download(filename: string, contents: string, type = 'application/json')
   a.href = url
   a.download = filename
   a.click()
-  URL.revokeObjectURL(url)
+  // Release the file a moment later: Safari can cancel a download whose URL is revoked immediately.
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 export function backupAge(at: number | undefined, now = Date.now()): string {

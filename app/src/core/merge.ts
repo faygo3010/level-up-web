@@ -1,9 +1,15 @@
-import { MAX_FORGOTTEN } from './schema'
+import { MAX_FORGOTTEN, MAX_TOMBSTONES } from './schema'
 import type { AppState, DateKey } from './types'
 
 function unionById<T extends { id: string }>(primary: readonly T[], secondary: readonly T[]): T[] {
   const seen = new Set(primary.map((i) => i.id))
   return [...primary, ...secondary.filter((i) => !seen.has(i.id))]
+}
+
+/** Archiving on either side wins; otherwise the primary copy wins. */
+function unionArchivable<T extends { id: string; archived: boolean }>(primary: readonly T[], secondary: readonly T[]): T[] {
+  const archivedElsewhere = new Set(secondary.filter((i) => i.archived).map((i) => i.id))
+  return unionById(primary, secondary).map((i) => (archivedElsewhere.has(i.id) && !i.archived ? { ...i, archived: true } : i))
 }
 
 function unionCompletions(
@@ -42,18 +48,24 @@ function earliest(a?: DateKey, b?: DateKey): DateKey | undefined {
  */
 export function mergeStates(primary: AppState, secondary: AppState): AppState {
   const startedOn = earliest(primary.startedOn, secondary.startedOn)
+  const tombstones = [...new Set([...primary.tombstones, ...secondary.tombstones])].slice(0, MAX_TOMBSTONES)
+  const dead = new Set(tombstones)
+  const completions = Object.fromEntries(
+    Object.entries(unionCompletions(primary.completions, secondary.completions)).map(([d, ids]) => [d, ids.filter((id) => !dead.has(`untick:${d}:${id}`))]),
+  )
   return {
     version: 1,
-    areas: unionById(primary.areas, secondary.areas),
-    routines: unionById(primary.routines, secondary.routines),
-    goals: unionById(primary.goals, secondary.goals),
-    goalEntries: unionById(primary.goalEntries, secondary.goalEntries),
-    rules: unionById(primary.rules, secondary.rules),
-    logs: unionById(primary.logs, secondary.logs),
+    areas: unionArchivable(primary.areas, secondary.areas),
+    routines: unionArchivable(primary.routines, secondary.routines),
+    goals: unionArchivable(primary.goals, secondary.goals),
+    goalEntries: unionById(primary.goalEntries, secondary.goalEntries).filter((e) => !dead.has(`goalEntry:${e.id}`)),
+    rules: unionArchivable(primary.rules, secondary.rules),
+    logs: unionById(primary.logs, secondary.logs).filter((l) => !dead.has(`log:${l.id}`)),
     ...mergeMemories(primary, secondary),
-    completions: unionCompletions(primary.completions, secondary.completions),
+    completions,
     ruleChecks: mergeRuleChecks(primary.ruleChecks, secondary.ruleChecks),
     settings: primary.settings,
+    tombstones,
     ...(startedOn !== undefined && { startedOn }),
   }
 }

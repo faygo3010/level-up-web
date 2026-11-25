@@ -14,9 +14,10 @@ Every change is saved to the same synced document the app uses. The app picks it
 | `get_system` | `check_rule` | `add_/update_/archive_rule` |
 | `get_journal` | `log_goal_progress` | `add_/update_/archive_goal` |
 | `get_insights` | `add_journal_entry` | `add_/update_/archive_area` |
-| | `delete_journal_entry` | `update_settings` |
+| `get_weekly_review`, `get_spending`, `pre_trade_check` | `delete_journal_entry`, `update_journal_entry` | `update_settings` |
+| `recall`, `list_goal_entries` | `remember`, `forget`, `delete_goal_entry` | `restore_item` |
 
-Archive and delete tools are marked destructive, so chat apps ask the user before running them. Read-only connections (`levelup:read` scope) only see the read tools.
+Tools that change data need an exact name or id (near-misses get suggestions). Archive and delete tools are marked destructive, so chat apps ask the user before running them. Read-only connections (`levelup:read` scope) only see the read tools.
 
 ## How it's built
 
@@ -36,14 +37,14 @@ PUBLIC_URL=http://localhost:8787 USE_MEMORY_STORES=true npm run dev
 npx @modelcontextprotocol/inspector   # then connect to http://localhost:8787/mcp
 ```
 
-`npm test` runs 54 tests. The end-to-end suite performs the whole flow a chat app does: registration, sign-in, consent, PKCE token exchange, then real MCP tool calls. It also covers the attack cases.
+`npm test` runs 100 tests. The end-to-end suite performs the whole flow a chat app does: registration, sign-in, consent, PKCE token exchange, then real MCP tool calls. It also covers the attack cases.
 
 ## Deploy
 
 Prerequisite: the app's Supabase project is set up (see `app/README.md`).
 
 1. In the Supabase SQL Editor, run `app/supabase/migrations/002_connector.sql`.
-2. Optional: schedule `select public.levelup_cleanup();` daily (Database → Cron) to clear expired sign-ins and tokens.
+2. Required: schedule `select public.levelup_cleanup();` daily (Database → Cron) to clear expired sign-ins and tokens, old activity, and unused app registrations.
 3. On Render, sync the Blueprint. It now includes `levelup-connector`. Fill in:
    - `PUBLIC_URL`: the connector's own address, e.g. `https://levelup-connector.onrender.com`
    - `APP_ORIGINS`: the app's address, e.g. `https://levelup-app.onrender.com`
@@ -72,3 +73,8 @@ Add `https://<your-connector>/mcp` as a custom connector:
 - Others: any MCP client that supports remote servers with OAuth.
 
 Which plans allow custom connectors is up to each chat app and changes over time.
+
+## Known limits
+
+- Rate limits are kept in memory, so they apply per server instance. Run a single instance, or move limits to a shared store before scaling out.
+- The production Supabase stores (`src/stores/supabase.ts`) aren't covered by automated tests here; the in-memory stores that share their interface are. Verify against a real project after deploying.

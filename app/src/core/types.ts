@@ -140,6 +140,11 @@ export interface AppState {
   readonly memories: readonly Memory[]
   /** Ids of deleted memories, so a stale device can't sync them back (newest first, bounded). */
   readonly forgottenMemoryIds: readonly string[]
+  /**
+   * Deletions sync must not undo (newest first, bounded): "log:<id>",
+   * "goalEntry:<id>", "untick:<date>:<routineId>".
+   */
+  readonly tombstones: readonly string[]
   readonly settings: Settings
   /** First day you used the system. Earlier days count as no data, not misses. */
   readonly startedOn?: DateKey

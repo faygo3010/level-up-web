@@ -21,6 +21,7 @@ export function emptyState(): AppState {
     ruleChecks: {},
     memories: [],
     forgottenMemoryIds: [],
+    tombstones: [],
     settings: DEFAULT_SETTINGS,
   }
 }

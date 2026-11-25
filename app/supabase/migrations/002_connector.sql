@@ -58,5 +58,8 @@ language sql security definer set search_path = public as $$
   delete from oauth_codes   where expires_at < now();
   delete from oauth_tokens  where expires_at < now();
   delete from activity_log  where created_at < now() - interval '180 days';
+  -- App registrations that never completed a connection (no tokens) after a week.
+  delete from oauth_clients c where c.created_at < now() - interval '7 days'
+    and not exists (select 1 from oauth_tokens t where t.client_id = c.client_id);
 $$;
 revoke all on function public.levelup_cleanup() from public, anon, authenticated;

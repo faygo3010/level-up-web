@@ -338,3 +338,21 @@ describe('navigation', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Insights' })).toBeInTheDocument()
   })
 })
+
+describe('backup nudge', () => {
+  it('only nags after a week of unprotected use', async () => {
+    const { needsBackup } = await import('../screens/Today')
+    const day = 86_400_000
+    const now = Date.parse('2026-11-24')
+    expect(needsBackup(undefined, '2026-11-20', '2026-11-24', 'off', now)).toBe(false)
+    expect(needsBackup(undefined, '2026-11-01', '2026-11-24', 'off', now)).toBe(true)
+    expect(needsBackup(now - 2 * day, '2026-11-01', '2026-11-24', 'signedOut', now)).toBe(false)
+    expect(needsBackup(now - 9 * day, '2026-11-01', '2026-11-24', 'signedOut', now)).toBe(true)
+    expect(needsBackup(undefined, '2026-11-01', '2026-11-24', 'idle', now)).toBe(false)
+  })
+
+  it('shows the banner on Today for an old, unbacked-up device', async () => {
+    await renderApp({ ...starterState('2026-01-01') })
+    expect(screen.getByText('Your data is only on this device')).toBeInTheDocument()
+  })
+})

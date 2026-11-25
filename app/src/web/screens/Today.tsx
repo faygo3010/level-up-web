@@ -1,3 +1,5 @@
+import { Banner } from '@astryxdesign/core/Banner'
+import { Button } from '@astryxdesign/core/Button'
 import { CheckboxList, CheckboxListItem } from '@astryxdesign/core/CheckboxList'
 import { Divider } from '@astryxdesign/core/Divider'
 import { ProgressBar } from '@astryxdesign/core/ProgressBar'
@@ -11,6 +13,7 @@ import { GoalRow } from '../components/GoalRow'
 import { RuleCheck } from '../components/RuleCheck'
 import { Empty, PageHeader, Section, areaTone } from '../components/ui'
 import { useAreas, useStore } from '../store'
+import { useSync } from '../sync/useSync'
 
 const SLOTS: { key: TimeOfDay; label: string }[] = [
   { key: 'morning', label: 'Morning' },
@@ -22,6 +25,16 @@ function greeting(hour: number): string {
   if (hour < 12) return 'Good morning.'
   if (hour < 18) return 'Good afternoon.'
   return 'Good evening.'
+}
+
+const BACKUP_NUDGE_DAYS = 7
+
+/** Nudge when nothing protects the data: not syncing, and no backup in the last week (after a week of use). */
+export function needsBackup(lastBackupAt: number | undefined, startedOn: string | undefined, today: string, syncStatus: string, now = Date.now()): boolean {
+  if (syncStatus === 'idle' || syncStatus === 'syncing') return false
+  const daysUsing = startedOn ? (Date.parse(today) - Date.parse(startedOn)) / 86_400_000 : 0
+  if (daysUsing < BACKUP_NUDGE_DAYS) return false
+  return !lastBackupAt || now - lastBackupAt > BACKUP_NUDGE_DAYS * 86_400_000
 }
 
 /** Plain, honest summary. No exclamation marks. Routines and rules are counted separately. */
@@ -37,6 +50,7 @@ export function summaryLine(routinesDone: number, routinesTotal: number, rulesKe
 
 export function Today() {
   const { state, dispatch, today } = useStore()
+  const sync = useSync()
   const { byId } = useAreas()
   const score = dayScore(state, today)
   const streak = currentStreak(state, today)
@@ -65,6 +79,15 @@ export function Today() {
         </VisuallyHidden>
         <ProgressBar label="Today's progress" isLabelHidden value={score.done} max={Math.max(score.total, 1)} variant={score.total > 0 && score.done === score.total ? 'success' : 'accent'} />
       </VStack>
+
+      {needsBackup(state.settings.lastBackupAt, state.startedOn, today, sync.status) && (
+        <Banner
+          status="warning"
+          title="Your data is only on this device"
+          description="Sign in to sync, or export a backup in Settings. Browsers can clear site data, especially Safari after a week unused."
+          endContent={<Button size="sm" variant="secondary" label="Back up" onClick={() => (window.location.hash = 'prefs')} />}
+        />
+      )}
 
       {routines.length === 0 && rules.length === 0 && goals.length === 0 && (
         <Empty title="Your system is empty" headingLevel={2}>Add routines, rules and goals in Areas.</Empty>

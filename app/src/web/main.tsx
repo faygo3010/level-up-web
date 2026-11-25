@@ -25,6 +25,9 @@ createRoot(root).render(
   </StrictMode>,
 )
 
+// Ask the browser not to evict local data (Safari otherwise may after 7 days unused).
+void navigator.storage?.persist?.().catch(() => {})
+
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch(() => {

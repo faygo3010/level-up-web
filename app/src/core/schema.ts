@@ -65,6 +65,7 @@ const logEntry = z.discriminatedUnion('kind', [
 /** Limits shared by the app, the connector and validation. */
 export const MAX_MEMORIES = 500
 export const MAX_FORGOTTEN = 1000
+export const MAX_TOMBSTONES = 2000
 
 const memory = z.object({
   id,
@@ -94,6 +95,7 @@ export const appStateSchema = z.object({
   ruleChecks: z.record(dateKey, z.record(id, z.boolean())),
   memories: z.array(memory).max(MAX_MEMORIES).default([]),
   forgottenMemoryIds: z.array(id).max(MAX_FORGOTTEN).default([]),
+  tombstones: z.array(z.string().max(200)).max(MAX_TOMBSTONES).default([]),
   settings: settings.default(DEFAULT_SETTINGS),
   startedOn: dateKey.optional(),
 })

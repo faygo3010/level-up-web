@@ -1,4 +1,4 @@
-import { MAX_FORGOTTEN } from './schema'
+import { MAX_FORGOTTEN, MAX_TOMBSTONES } from './schema'
 import type { AppState, Area, DateKey, Goal, GoalEntry, LogEntry, Memory, Routine, Rule, Settings } from './types'
 
 /** Collections that hold editable, archivable definitions of your system. */
@@ -62,6 +62,11 @@ function completeLinkedRoutines(state: AppState, entry: LogEntry): AppState {
   return { ...state, completions: { ...state.completions, [entry.date]: [...done, ...toTick.map((r) => r.id)] } }
 }
 
+/** Record a deletion so a stale device can't sync it back. */
+function bury(state: AppState, key: string): readonly string[] {
+  return [key, ...state.tombstones.filter((t) => t !== key)].slice(0, MAX_TOMBSTONES)
+}
+
 function archiveArea(state: AppState, areaId: string): AppState {
   const inArea = <T extends { areaId: string; archived: boolean }>(items: readonly T[]): T[] =>
     items.map((i) => (i.areaId === areaId ? { ...i, archived: true } : i))
@@ -83,11 +88,15 @@ export function reducer(state: AppState, action: Action): AppState {
       return action.collection === 'areas'
         ? archiveArea(state, action.id)
         : updateCollection(state, action.collection, (items) => archive(items, action.id))
-    case 'toggleRoutine':
+    case 'toggleRoutine': {
+      const key = `untick:${action.date}:${action.routineId}`
+      const wasDone = (state.completions[action.date] ?? []).includes(action.routineId)
       return {
         ...state,
         completions: { ...state.completions, [action.date]: toggle(state.completions[action.date] ?? [], action.routineId) },
+        tombstones: wasDone ? bury(state, key) : state.tombstones.filter((t) => t !== key),
       }
+    }
     case 'setRuleCheck': {
       const day = state.ruleChecks[action.date] ?? {}
       const next = action.kept === null ? withoutKey(day, action.ruleId) : { ...day, [action.ruleId]: action.kept }
@@ -96,13 +105,13 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'addGoalEntry':
       return { ...state, goalEntries: [...state.goalEntries, action.entry] }
     case 'removeGoalEntry':
-      return { ...state, goalEntries: state.goalEntries.filter((e) => e.id !== action.id) }
+      return { ...state, goalEntries: state.goalEntries.filter((e) => e.id !== action.id), tombstones: bury(state, `goalEntry:${action.id}`) }
     case 'addLog':
       return completeLinkedRoutines({ ...state, logs: [action.entry, ...state.logs] }, action.entry)
     case 'updateLog':
       return { ...state, logs: state.logs.map((l) => (l.id === action.entry.id ? action.entry : l)) }
     case 'removeLog':
-      return { ...state, logs: state.logs.filter((l) => l.id !== action.id) }
+      return { ...state, logs: state.logs.filter((l) => l.id !== action.id), tombstones: bury(state, `log:${action.id}`) }
     case 'addMemory':
       return { ...state, memories: [action.memory, ...state.memories] }
     case 'removeMemory':
