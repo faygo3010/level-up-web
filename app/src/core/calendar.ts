@@ -11,7 +11,16 @@ const START: Record<TimeOfDay, string> = { morning: '070000', anytime: '120000',
 const BYDAY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'] as const
 
 /** RFC 5545 text escaping. */
-const escapeText = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n')
+const escapeText = (s: string) =>
+  s
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    // Every line-break form, including a bare CR some calendar apps treat as a new line.
+    .replace(/\r\n|\r|\n/g, '\\n')
+    // Strip remaining control characters so no property can be injected.
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '')
 
 /** Fold lines longer than 75 octets (RFC 5545 §3.1), never splitting a character. */
 function fold(line: string): string {

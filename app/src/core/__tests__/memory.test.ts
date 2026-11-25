@@ -2,7 +2,7 @@ import { reducer } from '../reducer'
 import { mergeStates } from '../merge'
 import { parseState, serializeState } from '../storage'
 import { emptyState, starterState } from '../defaults'
-import type { Memory } from '../types'
+import type { AppState, Memory } from '../types'
 
 const memory = (id: string, text = 'Prefers morning workouts'): Memory => ({ id, text, areaId: 'fitness', createdAt: 1, source: 'Claude' })
 
@@ -32,5 +32,23 @@ describe('coach memories', () => {
       ['x', 'Prefers morning workouts'],
       ['y', 'Prefers morning workouts'],
     ])
+  })
+})
+
+describe('forgetting sticks across devices', () => {
+  it('records deletions and never merges a forgotten memory back', () => {
+    const device = reducer({ ...emptyState(), memories: [memory('x'), memory('y')] }, { type: 'removeMemory', id: 'x' })
+    expect(device.forgottenMemoryIds).toEqual(['x'])
+    const stale = { ...emptyState(), memories: [memory('x'), memory('y'), memory('z')] }
+    const merged = mergeStates(stale, device)
+    expect(merged.memories.map((m) => m.id)).toEqual(['y', 'z'])
+    expect(merged.forgottenMemoryIds).toEqual(['x'])
+  })
+
+  it('keeps the deletion record bounded', () => {
+    let s: AppState = { ...emptyState(), forgottenMemoryIds: Array.from({ length: 1000 }, (_, i) => `old-${i}`) }
+    s = reducer({ ...s, memories: [memory('new')] }, { type: 'removeMemory', id: 'new' })
+    expect(s.forgottenMemoryIds).toHaveLength(1000)
+    expect(s.forgottenMemoryIds[0]).toBe('new')
   })
 })

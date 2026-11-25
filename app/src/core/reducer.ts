@@ -1,3 +1,4 @@
+import { MAX_FORGOTTEN } from './schema'
 import type { AppState, Area, DateKey, Goal, GoalEntry, LogEntry, Memory, Routine, Rule, Settings } from './types'
 
 /** Collections that hold editable, archivable definitions of your system. */
@@ -91,7 +92,11 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'addMemory':
       return { ...state, memories: [action.memory, ...state.memories] }
     case 'removeMemory':
-      return { ...state, memories: state.memories.filter((m) => m.id !== action.id) }
+      return {
+        ...state,
+        memories: state.memories.filter((m) => m.id !== action.id),
+        forgottenMemoryIds: [action.id, ...state.forgottenMemoryIds.filter((x) => x !== action.id)].slice(0, MAX_FORGOTTEN),
+      }
     case 'updateSettings':
       return { ...state, settings: { ...state.settings, ...action.settings } }
     case 'replace':

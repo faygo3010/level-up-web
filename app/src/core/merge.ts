@@ -1,3 +1,4 @@
+import { MAX_FORGOTTEN } from './schema'
 import type { AppState, DateKey } from './types'
 
 function unionById<T extends { id: string }>(primary: readonly T[], secondary: readonly T[]): T[] {
@@ -18,6 +19,13 @@ function unionCompletions(
 function mergeRuleChecks(primary: AppState['ruleChecks'], secondary: AppState['ruleChecks']): AppState['ruleChecks'] {
   const dates = new Set([...Object.keys(primary), ...Object.keys(secondary)])
   return Object.fromEntries([...dates].map((d) => [d, { ...secondary[d], ...primary[d] }]))
+}
+
+/** Union memories, but a memory forgotten on either side stays forgotten. */
+function mergeMemories(primary: AppState, secondary: AppState): Pick<AppState, 'memories' | 'forgottenMemoryIds'> {
+  const forgotten = [...new Set([...primary.forgottenMemoryIds, ...secondary.forgottenMemoryIds])].slice(0, MAX_FORGOTTEN)
+  const gone = new Set(forgotten)
+  return { memories: unionById(primary.memories, secondary.memories).filter((m) => !gone.has(m.id)), forgottenMemoryIds: forgotten }
 }
 
 function earliest(a?: DateKey, b?: DateKey): DateKey | undefined {
@@ -42,7 +50,7 @@ export function mergeStates(primary: AppState, secondary: AppState): AppState {
     goalEntries: unionById(primary.goalEntries, secondary.goalEntries),
     rules: unionById(primary.rules, secondary.rules),
     logs: unionById(primary.logs, secondary.logs),
-    memories: unionById(primary.memories, secondary.memories),
+    ...mergeMemories(primary, secondary),
     completions: unionCompletions(primary.completions, secondary.completions),
     ruleChecks: mergeRuleChecks(primary.ruleChecks, secondary.ruleChecks),
     settings: primary.settings,

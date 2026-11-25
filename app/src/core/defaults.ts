@@ -20,6 +20,7 @@ export function emptyState(): AppState {
     completions: {},
     ruleChecks: {},
     memories: [],
+    forgottenMemoryIds: [],
     settings: DEFAULT_SETTINGS,
   }
 }

@@ -43,3 +43,17 @@ describe('routinesToIcs', () => {
     expect(long.split('\r\n').every((l) => new TextEncoder().encode(l).length <= 75)).toBe(true)
   })
 })
+
+describe('ICS injection', () => {
+  it('neutralises bare CR, CRLF and control characters in titles', () => {
+    const evil = routinesToIcs(
+      stateWith({ routines: [routine({ title: 'x\rEND:VEVENT\rBEGIN:VEVENT\r\nSUMMARY:pwn\u0007' })] }),
+      '2026-11-24',
+      NOW,
+    )
+    expect(evil.split('\r\n').filter((l) => l === 'BEGIN:VEVENT')).toHaveLength(1)
+    expect(evil).not.toMatch(/\r(?!\n)/)
+    expect(evil).not.toContain('\u0007')
+    expect(evil).toContain(String.raw`SUMMARY:x\nEND:VEVENT\nBEGIN:VEVENT\nSUMMARY:pwn`)
+  })
+})

@@ -4,6 +4,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { randomUUID } from 'node:crypto'
 import { starterState } from '../../app/src/core/defaults'
 import { todayIn } from '../../app/src/core/dates'
+import { appStateSchema } from '../../app/src/core/schema'
 import { SCOPES } from './oauth/provider'
 import type { Stores } from './stores/types'
 import { TOOLS, ToolError, type ToolDef } from './tools'
@@ -63,6 +64,13 @@ export async function runTool(
         return text(result.text)
       }
 
+      // Never save a document the app or a later pull would reject (e.g. over a size limit).
+      const valid = appStateSchema.safeParse(result.state)
+      if (!valid.success) {
+        console.error(`[tool ${tool.name}] produced invalid state:`, valid.error.issues[0]?.path.join('.'))
+        done('server_error', attempt + 1)
+        return text('That change would make your Level Up data invalid, so nothing was saved.', true)
+      }
       const pushed = await repo.push(result.state, doc?.version ?? null)
       if (!pushed.ok) continue
       await stores.activity

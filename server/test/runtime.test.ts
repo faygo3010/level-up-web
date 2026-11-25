@@ -155,3 +155,15 @@ describe('telemetry', () => {
     info.mockRestore()
   })
 })
+
+describe('state validation before saving', () => {
+  it('never saves a document that fails the schema', async () => {
+    const state = new MemoryStateStore()
+    const bad = { ...TOOLS.find((t) => t.name === 'add_area')!, name: 'bad_tool', run: (s: never) => ({ text: 'ok', state: { ...(s as object), version: 2 } as never, summary: 'x' }) }
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const r = await runTool(bad as never, { name: 'X' }, caller, { state, activity: new MemoryActivityStore() }, () => NOW)
+    expect(r.isError).toBe(true)
+    expect(state.docs.size).toBe(0)
+    spy.mockRestore()
+  })
+})

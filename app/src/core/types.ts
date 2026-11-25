@@ -129,6 +129,8 @@ export interface AppState {
   readonly ruleChecks: Readonly<Record<DateKey, Readonly<Record<string, boolean>>>>
   /** Notes connected AI apps saved to remember across chats. Visible and deletable in the app. */
   readonly memories: readonly Memory[]
+  /** Ids of deleted memories, so a stale device can't sync them back (newest first, bounded). */
+  readonly forgottenMemoryIds: readonly string[]
   readonly settings: Settings
   /** First day you used the system. Earlier days count as no data, not misses. */
   readonly startedOn?: DateKey
