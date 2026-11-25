@@ -68,8 +68,8 @@ function oauthStore(db: SupabaseClient): Stores['oauth'] {
       const r = await db.from('oauth_tokens').select('*').eq('token_hash', hash).maybeSingle()
       return toToken(check(r, 'checking token'))
     },
-    async takeToken(hash) {
-      const r = await db.from('oauth_tokens').delete().eq('token_hash', hash).select('*')
+    async markRotated(hash) {
+      const r = await db.from('oauth_tokens').update({ kind: 'rotated' }).eq('token_hash', hash).eq('kind', 'refresh').select('*')
       return toToken((check(r, 'rotating token') as TokenRow[] | null)?.[0] ?? null)
     },
     async deleteToken(hash) {
@@ -112,7 +112,7 @@ function oauthStore(db: SupabaseClient): Stores['oauth'] {
 
 interface TokenRow {
   token_hash: string
-  kind: 'access' | 'refresh'
+  kind: 'access' | 'refresh' | 'rotated'
   user_id: string
   client_id: string
   scopes: string[]

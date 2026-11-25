@@ -52,6 +52,16 @@ function todayText(state: AppState, date: DateKey): string {
   return lines.join('\n')
 }
 
+function archivedText(state: AppState): string {
+  const rows = [
+    ...state.areas.filter((x) => x.archived).map((x) => `- area: ${x.name} (id: ${x.id})`),
+    ...state.routines.filter((x) => x.archived).map((x) => `- routine: ${x.title} (id: ${x.id})`),
+    ...state.rules.filter((x) => x.archived).map((x) => `- rule: ${x.text} (id: ${x.id})`),
+    ...state.goals.filter((x) => x.archived).map((x) => `- goal: ${x.title} (id: ${x.id})`),
+  ]
+  return ['Archived (restore with restore_item):', ...(rows.length ? rows : ['- nothing archived'])].join('\n')
+}
+
 function systemText(state: AppState, areaQuery: string | undefined): string {
   const areas = areaQuery ? [findArea(state, areaQuery)] : state.areas.filter((a) => !a.archived)
   if (areas.length === 0) return 'No areas yet. Add one with add_area.'
@@ -134,8 +144,13 @@ export const readTools = [
     description:
       "The user's whole system: life areas, each area's routines (with days and time of day), playbook rules and goals, plus settings. Includes the ids needed by the editing tools.",
     access: 'read',
-    input: { area: z.string().trim().max(200).optional().describe('Limit to one area (id or name).') },
-    run: (state, { area }) => ({ text: systemText(state, area) }),
+    input: {
+      area: z.string().trim().max(200).optional().describe('Limit to one area (id or name).'),
+      include_archived: z.boolean().default(false).describe('Also list archived items with their ids.'),
+    },
+    run: (state, { area, include_archived }) => ({
+      text: include_archived ? `${systemText(state, area)}\n\n${archivedText(state)}` : systemText(state, area),
+    }),
   }),
   defineTool({
     name: 'get_journal',

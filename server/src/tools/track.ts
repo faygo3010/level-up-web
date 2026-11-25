@@ -12,11 +12,19 @@ import {
   quote,
   resolveDate,
   ToolError,
+  amountArg,
 } from './shared'
 
 const required = <T>(value: T | undefined, field: string, kind: string): T => {
   if (value === undefined) throw new ToolError(`A ${kind} entry needs "${field}".`)
   return value
+}
+
+const IRRELEVANT: Record<'trade' | 'workout' | 'money' | 'note', Record<string, true>> = {
+  trade: { activity: true, minutes: true, amount: true, income: true, category: true },
+  workout: { symbol: true, side: true, pnl: true, followed_plan: true, amount: true, income: true, category: true },
+  money: { symbol: true, side: true, pnl: true, followed_plan: true, activity: true, minutes: true },
+  note: { symbol: true, side: true, pnl: true, followed_plan: true, activity: true, minutes: true, amount: true, income: true, category: true },
 }
 
 const ENTRY_AREA_HINT = { trade: 'trad', workout: 'fit', money: 'fin', note: '' } as const
@@ -27,13 +35,14 @@ export const trackTools = [
     title: 'Tick off a routine',
     description: 'Mark one of the user’s routines as done (or not done) for a day. Use when the user says they did something in their system.',
     access: 'write',
+    idempotent: true,
     input: {
       routine: nameArg('routine'),
       done: z.boolean().default(true).describe('false to un-tick it.'),
       date: dateArg,
     },
     run: (state, { routine, done, date }, ctx) => {
-      const r = findOne(state.routines, routine, (x) => x.title, 'routine')
+      const r = findOne(state.routines, routine, (x) => x.title, 'routine', 'exact')
       const day = resolveDate(date, ctx)
       const isDone = (state.completions[day] ?? []).includes(r.id)
       if (isDone === done) return { text: `${quote(r.title)} was already ${done ? 'done' : 'not done'} for ${day}. Nothing changed.` }
@@ -49,9 +58,10 @@ export const trackTools = [
     title: 'Review a playbook rule',
     description: 'Record whether the user kept or broke one of their playbook rules on a day (e.g. trading risk rules). Pass kept: null to clear it.',
     access: 'write',
+    idempotent: true,
     input: { rule: nameArg('rule'), kept: z.boolean().nullable(), date: dateArg },
     run: (state, { rule, kept, date }, ctx) => {
-      const r = findOne(state.rules, rule, (x) => x.text, 'rule')
+      const r = findOne(state.rules, rule, (x) => x.text, 'rule', 'exact')
       const day = resolveDate(date, ctx)
       const word = kept === null ? 'Cleared' : kept ? 'Kept' : 'Broke'
       return {
@@ -67,9 +77,9 @@ export const trackTools = [
     description:
       'Add an amount to one of the user’s goals for a day, e.g. 1 training session, 2.5 deep work hours, or £40 of discretionary spending. Use a negative amount to correct a mistake.',
     access: 'write',
-    input: { goal: nameArg('goal'), amount: z.number().finite().refine((n) => n !== 0, 'Amount cannot be 0'), date: dateArg },
+    input: { goal: nameArg('goal'), amount: amountArg.refine((n) => n !== 0, 'Amount cannot be 0'), date: dateArg },
     run: (state, { goal, amount, date }, ctx) => {
-      const g = findOne(state.goals, goal, (x) => x.title, 'goal')
+      const g = findOne(state.goals, goal, (x) => x.title, 'goal', 'exact')
       const day = resolveDate(date, ctx)
       const next = reducer(state, { type: 'addGoalEntry', entry: { id: ctx.newId(), goalId: g.id, date: day, value: amount } })
       return {
@@ -92,16 +102,16 @@ export const trackTools = [
       date: dateArg,
       symbol: z.string().trim().max(20).optional(),
       side: z.enum(['long', 'short']).optional(),
-      pnl: z.number().finite().optional().describe('Profit or loss in the user’s currency; negative for a loss.'),
+      pnl: amountArg.optional().describe('Profit or loss in the user’s currency; negative for a loss.'),
       followed_plan: z.boolean().optional().describe('Did the trade follow the user’s plan and rules?'),
       activity: z.string().trim().max(60).optional(),
       minutes: z.number().finite().min(0).max(24 * 60).optional(),
-      amount: z.number().finite().positive().optional().describe('Money amount, always positive.'),
+      amount: amountArg.positive().optional().describe('Money amount, always positive.'),
       income: z.boolean().optional().describe('true if money was received rather than spent.'),
       category: z.string().trim().max(40).optional(),
     },
     run: (state, a, ctx) => {
-      const area = a.area ? findArea(state, a.area) : defaultAreaFor(state, ENTRY_AREA_HINT[a.kind])
+      const area = a.area ? findArea(state, a.area, 'exact') : defaultAreaFor(state, ENTRY_AREA_HINT[a.kind])
       const base = { id: ctx.newId(), areaId: area.id, date: resolveDate(a.date, ctx), text: a.text ?? '', createdAt: ctx.now }
       const entry: LogEntry = (() => {
         switch (a.kind) {
@@ -127,9 +137,10 @@ export const trackTools = [
           }
         }
       })()
+      const ignored = Object.entries(IRRELEVANT[a.kind]).flatMap(([field]) => (a[field as keyof typeof a] !== undefined ? [field] : []))
       const next = reducer(state, { type: 'addLog', entry })
       const line = logLine(next, entry).replace(/^- /, '')
-      return { state: next, text: `Saved: ${line}`, summary: `Added journal entry: ${line.replace(/ \(id: .*\)$/, '')}` }
+      return { state: next, text: `Saved: ${line}${ignored.length ? ` (ignored for a ${a.kind}: ${ignored.join(', ')})` : ''}`, summary: `Added journal entry: ${line.replace(/ \(id: .*\)$/, '')}` }
     },
   }),
   defineTool({

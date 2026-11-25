@@ -19,6 +19,7 @@ export type Action =
   | { type: 'removeGoalEntry'; id: string }
   | { type: 'addLog'; entry: LogEntry }
   | { type: 'removeLog'; id: string }
+  | { type: 'updateLog'; entry: LogEntry }
   | { type: 'addMemory'; memory: Memory }
   | { type: 'removeMemory'; id: string }
   | { type: 'updateSettings'; settings: Partial<Settings> }
@@ -87,6 +88,8 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, goalEntries: state.goalEntries.filter((e) => e.id !== action.id) }
     case 'addLog':
       return { ...state, logs: [action.entry, ...state.logs] }
+    case 'updateLog':
+      return { ...state, logs: state.logs.map((l) => (l.id === action.entry.id ? action.entry : l)) }
     case 'removeLog':
       return { ...state, logs: state.logs.filter((l) => l.id !== action.id) }
     case 'addMemory':

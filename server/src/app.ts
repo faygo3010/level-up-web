@@ -67,9 +67,11 @@ export function createApp({ publicUrl, appOrigins, stores, now, trustProxy = 1 }
     legacyHeaders: false,
     // Runs after the bearer check, so every request here has a verified user and app.
     keyGenerator: (req) => `${req.auth!.clientId}:${String(req.auth!.extra?.userId)}`,
+    handler: (_req, res) => jsonRpcError(res, 429, 'Too many requests. Slow down and try again in a minute.'),
   })
 
-  app.post('/mcp', express.json({ limit: '256kb' }), bearer, mcpLimiter, async (req: Request, res: Response) => {
+  // Check the token before reading the body, so unauthenticated requests can't make us parse anything.
+  app.post('/mcp', bearer, mcpLimiter, express.json({ limit: '256kb' }), async (req: Request, res: Response) => {
     try {
       const auth = req.auth!
       const client = await stores.oauth.getClient(auth.clientId)
@@ -97,6 +99,16 @@ export function createApp({ publicUrl, appOrigins, stores, now, trustProxy = 1 }
       .send(`Level Up connector.\n\nAdd this URL as a custom connector in your AI app:\n${mcpUrl.href}\n`)
   })
   app.get('/healthz', (_req, res) => res.json({ ok: true }))
+
+  // Body errors and anything unexpected become JSON, never an HTML page with a stack trace.
+  app.use((err: unknown, _req: Request, res: Response, next: (e?: unknown) => void) => {
+    if (res.headersSent) return next(err)
+    const type = (err as { type?: string })?.type
+    if (type === 'entity.parse.failed') return void res.status(400).json({ jsonrpc: '2.0', error: { code: -32700, message: 'Parse error' }, id: null })
+    if (type === 'entity.too.large') return void jsonRpcError(res, 413, 'Request too large')
+    console.error('[http] unhandled error', err instanceof Error ? err.message : 'unknown')
+    jsonRpcError(res, 500, 'Internal server error')
+  })
 
   return app
 }

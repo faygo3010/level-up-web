@@ -64,6 +64,13 @@ describe('reducer', () => {
     expect(reducer(s, { type: 'removeLog', id: 'a' }).logs.map((l) => l.id)).toEqual(['b'])
   })
 
+  it('updates a log entry in place, keeping its position', () => {
+    const log = (id: string, text: string): LogEntry => ({ id, areaId: 'work', date: D, text, createdAt: 0, kind: 'note' })
+    const s = reducer(reducer(stateWith(), { type: 'addLog', entry: log('a', 'one') }), { type: 'addLog', entry: log('b', 'two') })
+    const u = reducer(s, { type: 'updateLog', entry: log('a', 'edited') })
+    expect(u.logs.map((l) => [l.id, l.text])).toEqual([['b', 'two'], ['a', 'edited']])
+  })
+
   it('updates settings and replaces the whole state', () => {
     const s = reducer(stateWith(), { type: 'updateSettings', settings: { currency: '$' } })
     expect(s.settings.currency).toBe('$')

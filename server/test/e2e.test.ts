@@ -155,7 +155,7 @@ describe('full connect flow', () => {
     const client = await mcpClient((await connect()).tokens.access_token!)
     const r = await client.callTool({ name: 'complete_routine', arguments: { routine: 'nonexistent thing' } })
     expect(r.isError).toBe(true)
-    expect(textOf(r)).toMatch(/No routine matches/)
+    expect(textOf(r)).toMatch(/No routine is called/)
     await client.close()
   })
 
@@ -188,13 +188,28 @@ describe('token security', () => {
     expect(again.status).toBe(400)
   })
 
-  it('rotates refresh tokens and rejects reuse', async () => {
+  it('rotates refresh tokens, and a replayed one revokes the whole connection', async () => {
     const { clientId, tokens } = await connect()
     const first = await token({ grant_type: 'refresh_token', refresh_token: tokens.refresh_token!, client_id: clientId })
     expect(first.status).toBe(200)
     expect(first.body.access_token).not.toBe(tokens.access_token)
     const reuse = await token({ grant_type: 'refresh_token', refresh_token: tokens.refresh_token!, client_id: clientId })
     expect(reuse.status).toBe(400)
+    const newer = await token({ grant_type: 'refresh_token', refresh_token: first.body.refresh_token!, client_id: clientId })
+    expect(newer.status).toBe(400)
+  })
+
+  it('checks the token before reading the body and never returns HTML errors', async () => {
+    const noAuth = await fetch(`${base}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{bad' })
+    expect(noAuth.status).toBe(401)
+    const { tokens } = await connect()
+    const bad = await fetch(`${base}/mcp`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${tokens.access_token}` },
+      body: '{bad',
+    })
+    expect(bad.status).toBe(400)
+    expect(await bad.json()).toMatchObject({ jsonrpc: '2.0', error: { code: -32700 } })
   })
 
   it('never stores raw tokens', async () => {

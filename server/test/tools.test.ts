@@ -33,6 +33,7 @@ describe('tool catalogue', () => {
       'archive_goal',
       'archive_routine',
       'archive_rule',
+      'delete_goal_entry',
       'delete_journal_entry',
       'forget',
     ])
@@ -53,7 +54,7 @@ describe('read tools', () => {
 
   it('get_today reflects completions and rule checks', () => {
     const s = write('complete_routine', { routine: 'train' })
-    const s2 = write('check_rule', { rule: 'stop loss', kept: false }, s)
+    const s2 = write('check_rule', { rule: 'trade-stop', kept: false }, s)
     const { text } = call('get_today', {}, s2)
     expect(text).toMatch(/\[x\] Train/)
     expect(text).toMatch(/BROKEN.*Stop loss set before entry/)
@@ -105,8 +106,11 @@ describe('daily tracking tools', () => {
 
   it('reports ambiguous and unknown names with the options', () => {
     expect(() => call('complete_routine', { routine: 'p' })).toThrow(ToolError)
-    expect(() => call('complete_routine', { routine: 'p' })).toThrow(/matches several.*Plan top 3 priorities/)
-    expect(() => call('complete_routine', { routine: 'zzz' })).toThrow(/No routine matches "zzz"/)
+    // Changing tools never guess: a partial name gets suggestions, not a change.
+    expect(() => call('complete_routine', { routine: 'work' })).toThrow(/No routine is called "work". Did you mean: 90 min deep work block/)
+    expect(() => call('complete_routine', { routine: 'zzz' })).toThrow(/No routine is called "zzz". Options:/)
+    // Reading tools still accept a unique part of a name.
+    expect(() => call('list_goal_entries', { goal: 'p' })).toThrow(/matches several/)
   })
 
   it('check_rule records kept or broken', () => {
@@ -115,7 +119,7 @@ describe('daily tracking tools', () => {
   })
 
   it('log_goal_progress adds to the goal and reports progress', () => {
-    const r = call('log_goal_progress', { goal: 'training', amount: 2 })
+    const r = call('log_goal_progress', { goal: 'Training sessions', amount: 2 })
     expect(r.state?.goalEntries).toEqual([{ id: 'id-' + ids, goalId: 'g-train', date: TODAY, value: 2 }])
     expect(r.text).toContain('2 / 4 sessions')
   })
@@ -184,9 +188,9 @@ describe('system editing tools', () => {
   it('adds, updates and archives rules', () => {
     const s = write('add_rule', { area: 'trading', text: 'No trades before 10am' })
     expect(s.rules.at(-1)?.text).toBe('No trades before 10am')
-    const u = write('update_rule', { rule: 'before 10am', text: 'No trades before 9:45' }, s)
+    const u = write('update_rule', { rule: 'No trades before 10am', text: 'No trades before 9:45' }, s)
     expect(u.rules.at(-1)?.text).toBe('No trades before 9:45')
-    expect(write('archive_rule', { rule: '9:45' }, u).rules.at(-1)?.archived).toBe(true)
+    expect(write('archive_rule', { rule: 'No trades before 9:45' }, u).rules.at(-1)?.archived).toBe(true)
   })
 
   it('adds and updates goals', () => {
@@ -241,10 +245,10 @@ describe('coach memory (awesome-ai-apps memory agents pattern)', () => {
 
 describe('get_weekly_review (study coach reflection pattern)', () => {
   it('summarises the week: adherence, broken rules, missed routines, trading, budgets', () => {
-    let s = write('check_rule', { rule: 'stop loss', kept: false })
-    s = write('check_rule', { rule: 'stop loss', kept: false, date: '2026-11-23' }, s)
+    let s = write('check_rule', { rule: 'trade-stop', kept: false })
+    s = write('check_rule', { rule: 'trade-stop', kept: false, date: '2026-11-23' }, s)
     s = write('add_journal_entry', { kind: 'trade', symbol: 'ES', pnl: -50, followed_plan: false }, s)
-    s = write('log_goal_progress', { goal: 'discretionary', amount: 300 }, s)
+    s = write('log_goal_progress', { goal: 'Discretionary spending', amount: 300 }, s)
     const { text } = call('get_weekly_review', {}, s)
     expect(text).toContain('Week 2026-11-18 to 2026-11-24')
     expect(text).toMatch(/Most broken rules:\n- Stop loss set before entry: broken 2 times/)
@@ -286,7 +290,7 @@ describe('pre_trade_check (pre-trade brief pattern, grounded in the user’s own
   })
 
   it('flags a rule already broken today and unfinished prep', () => {
-    const s = write('check_rule', { rule: 'stop loss', kept: false })
+    const s = write('check_rule', { rule: 'trade-stop', kept: false })
     const { text } = call('pre_trade_check', {}, s)
     expect(text).toMatch(/STOP: you marked "Stop loss set before entry" as broken today/)
     expect(text).toMatch(/Not done yet: Pre-market prep & levels/)
@@ -307,7 +311,7 @@ describe('audit fixes', () => {
   })
 
   it('remember with an unknown area and recall filtered by area', () => {
-    expect(() => call('remember', { text: 'x', area: 'nowhere' })).toThrow(/No area matches/)
+    expect(() => call('remember', { text: 'x', area: 'nowhere' })).toThrow(/No area is called "nowhere"/)
     let s = write('remember', { text: 'Trading note', area: 'trading' })
     s = write('remember', { text: 'Fitness note', area: 'fitness' }, s)
     const t = call('recall', { area: 'fitness' }, s).text
@@ -316,7 +320,7 @@ describe('audit fixes', () => {
   })
 
   it('pre_trade_check only counts trades in the trading area and reads written-out limits', () => {
-    let s = write('update_rule', { rule: 'after 2 losses', text: 'Stop after two consecutive losses' })
+    let s = write('update_rule', { rule: 'trade-daily-loss', text: 'Stop after two consecutive losses' })
     s = write('add_journal_entry', { kind: 'trade', symbol: 'ES', pnl: -10, followed_plan: true }, s)
     s = write('add_journal_entry', { kind: 'trade', symbol: 'X', pnl: -10, followed_plan: true, area: 'work' }, s)
     expect(call('pre_trade_check', {}, s).text).toContain('Trades today: 1, losses 1')
@@ -343,5 +347,55 @@ describe('audit fixes', () => {
     expect(call('get_spending', { category: 'FOOD' }, s).text).toMatch(/food: £20/)
     expect(call('get_spending', {}, s).text).toMatch(/received £100, net £80/)
     expect(() => call('get_spending', { from: '2026-11-20', to: '2026-11-01' }, s)).toThrow(/after/)
+  })
+})
+
+describe('API review fixes', () => {
+  it('lists and deletes goal entries to undo a mistake', () => {
+    const s = write('log_goal_progress', { goal: 'Training sessions', amount: 3 })
+    const list = call('list_goal_entries', { goal: 'training' }, s).text
+    const id = /\(id: ([^)]+)\)/.exec(list)![1]!
+    expect(list).toContain(`${TODAY}: 3 sessions`)
+    expect(write('delete_goal_entry', { id }, s).goalEntries).toHaveLength(0)
+    expect(() => call('delete_goal_entry', { id: 'nope' }, s)).toThrow(/No goal entry/)
+  })
+
+  it('edits a journal entry in place', () => {
+    const s = write('add_journal_entry', { kind: 'trade', symbol: 'ES', pnl: 50, followed_plan: true })
+    const id = s.logs[0]!.id
+    const u = write('update_journal_entry', { id, pnl: -50, followed_plan: false, text: 'Chased it' }, s)
+    expect(u.logs[0]).toMatchObject({ id, createdAt: s.logs[0]!.createdAt, text: 'Chased it', trade: { symbol: 'ES', pnl: -50, followedPlan: false } })
+    const m = write('add_journal_entry', { kind: 'money', amount: 10, category: 'food' })
+    expect(write('update_journal_entry', { id: m.logs[0]!.id, amount: 12 }, m).logs[0]).toMatchObject({ money: { amount: -12 } })
+  })
+
+  it('restores archived items and lists them', () => {
+    const a = write('archive_routine', { routine: 'Train' })
+    expect(call('get_system', { include_archived: true }, a).text).toContain('- routine: Train (id: fit-train)')
+    const r = write('restore_item', { kind: 'routine', id: 'fit-train' }, a)
+    expect(r.routines.find((x) => x.id === 'fit-train')?.archived).toBe(false)
+    expect(call('restore_item', { kind: 'routine', id: 'fit-train' }, r).state).toBeUndefined()
+  })
+
+  it('rejects impossible dates, huge amounts, duplicate area names and multi-emoji icons', () => {
+    const tool = (name: string) => TOOLS.find((t) => t.name === name)!
+    expect(tool('complete_routine').schema.safeParse({ routine: 'Train', date: '2026-02-30' }).success).toBe(false)
+    expect(tool('complete_routine').schema.safeParse({ routine: 'Train', date: '1999-12-31' }).success).toBe(false)
+    expect(tool('log_goal_progress').schema.safeParse({ goal: 'x', amount: 1e308 }).success).toBe(false)
+    expect(tool('add_area').schema.safeParse({ name: 'X', icon: '🫀🫀' }).success).toBe(false)
+    expect(tool('add_area').schema.safeParse({ name: 'X', icon: '👨‍👩‍👧' }).success).toBe(true)
+    expect(() => call('update_area', { area: 'Fitness', name: 'work' })).toThrow(/already exists/)
+  })
+
+  it('reports ignored fields, canonical time zones and future review dates', () => {
+    expect(call('add_journal_entry', { kind: 'workout', minutes: 30, pnl: 5 }).text).toContain('(ignored for a workout: pnl)')
+    expect(write('update_settings', { time_zone: 'europe/london' }).settings.timeZone).toBe('Europe/London')
+    expect(() => call('get_weekly_review', { end_date: '2030-01-01' })).toThrow(/future/)
+  })
+
+  it('marks repeat-safe write tools as idempotent', () => {
+    expect(TOOLS.filter((t) => t.idempotent).map((t) => t.name).sort()).toEqual(
+      ['check_rule', 'complete_routine', 'restore_item', 'update_area', 'update_goal', 'update_journal_entry', 'update_routine', 'update_rule', 'update_settings'],
+    )
   })
 })

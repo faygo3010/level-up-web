@@ -55,9 +55,10 @@ export class MemoryOAuthStore implements OAuthStore {
   async getToken(hash: string) {
     return this.tokens.get(hash)
   }
-  async takeToken(hash: string) {
+  async markRotated(hash: string) {
     const t = this.tokens.get(hash)
-    this.tokens.delete(hash)
+    if (!t || t.kind !== 'refresh') return undefined
+    this.tokens.set(hash, { ...t, kind: 'rotated' })
     return t
   }
   async deleteToken(hash: string) {

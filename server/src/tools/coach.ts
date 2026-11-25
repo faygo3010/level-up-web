@@ -64,7 +64,7 @@ const memoryTools = [
       if (state.memories.length >= MAX_MEMORIES) {
         throw new ToolError(`The account already holds ${MAX_MEMORIES} saved notes. Use recall and forget to remove old ones first.`)
       }
-      const areaId = a.area ? findArea(state, a.area).id : undefined
+      const areaId = a.area ? findArea(state, a.area, 'exact').id : undefined
       const memory: Memory = { id: ctx.newId(), text: a.text, ...(areaId && { areaId }), createdAt: ctx.now, source: ctx.source ?? 'AI app' }
       return {
         state: reducer(state, { type: 'addMemory', memory }),
@@ -192,7 +192,10 @@ const reviewTools = [
       'A grounded review of the last 7 days: adherence versus the week before, most-broken rules, most-missed routines, goals and budgets, on-plan versus off-plan trades, and reflection questions. Use for weekly check-ins; cite the numbers, do not invent any.',
     access: 'read',
     input: { end_date: dateArg.describe('Last day of the week to review, YYYY-MM-DD. Defaults to today.') },
-    run: (state, { end_date }, ctx) => ({ text: weeklyReview(state, end_date && end_date < ctx.today ? end_date : ctx.today) }),
+    run: (state, { end_date }, ctx) => {
+      if (end_date && end_date > ctx.today) throw new ToolError(`${end_date} is in the future; reviews cover past weeks (today is ${ctx.today}).`)
+      return { text: weeklyReview(state, end_date ?? ctx.today) }
+    },
   }),
   defineTool({
     name: 'get_spending',

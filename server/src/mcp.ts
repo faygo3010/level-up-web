@@ -101,7 +101,8 @@ export async function runTool(
 }
 
 const INSTRUCTIONS = `Level Up holds the user's personal operating system: life areas (e.g. Work, Fitness, Trading, Finance), each with routines (scheduled habits), playbook rules (kept/broken each day) and goals (progress bars), plus a journal of trades, workouts, money and notes.
-Call get_today when the user asks what to do or how their day is going, and get_system before editing their setup so you use the right ids.
+Call get_today when the user asks what to do or how their day is going, and get_system before editing their setup. Changing tools need an exact name or the id; prefer ids from get_today/get_system.
+Dates are calendar dates in the user's time zone and can't be in the future. To fix a mistake use list_goal_entries + delete_goal_entry, update_journal_entry, or restore_item.
 When the user tells you they did something, record it (complete_routine, check_rule, log_goal_progress, add_journal_entry).
 Start coaching conversations with recall to see what you saved before; use remember for durable facts the user would want any AI app to know (one fact per call, never secrets or passwords).
 For check-ins use get_weekly_review; before the user trades, use pre_trade_check; for spending questions use get_spending.
@@ -124,7 +125,7 @@ export function buildMcpServer(caller: Caller, stores: Pick<Stores, 'state' | 'a
           title: tool.title,
           readOnlyHint: tool.access === 'read',
           destructiveHint: tool.destructive ?? false,
-          idempotentHint: tool.access === 'read',
+          idempotentHint: tool.access === 'read' || tool.idempotent === true,
           openWorldHint: false,
         },
       },

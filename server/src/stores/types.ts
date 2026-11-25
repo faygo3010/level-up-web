@@ -33,7 +33,7 @@ export interface AuthorizationCode {
 
 export interface TokenRecord {
   readonly tokenHash: string
-  readonly kind: 'access' | 'refresh'
+  readonly kind: 'access' | 'refresh' | 'rotated'
   readonly userId: string
   readonly clientId: string
   readonly scopes: readonly string[]
@@ -73,8 +73,8 @@ export interface OAuthStore {
 
   saveToken(t: TokenRecord): Promise<void>
   getToken(tokenHash: string): Promise<TokenRecord | undefined>
-  /** Atomically fetch and delete (refresh-token rotation). */
-  takeToken(tokenHash: string): Promise<TokenRecord | undefined>
+  /** Atomically turn a live refresh token into 'rotated'; returns it only if it was still live. */
+  markRotated(tokenHash: string): Promise<TokenRecord | undefined>
   deleteToken(tokenHash: string): Promise<void>
   touchToken(tokenHash: string, at: number): Promise<void>
   /** Disconnect a chat app: drop all its tokens and unused codes for this user. */

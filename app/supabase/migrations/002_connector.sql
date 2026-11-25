@@ -23,7 +23,7 @@ create table if not exists public.oauth_codes (
 
 create table if not exists public.oauth_tokens (
   token_hash   text primary key,         -- sha256 of the token; raw tokens are never stored
-  kind         text not null check (kind in ('access', 'refresh')),
+  kind         text not null check (kind in ('access', 'refresh', 'rotated')),
   user_id      uuid not null references auth.users (id) on delete cascade,
   client_id    text not null references public.oauth_clients (client_id) on delete cascade,
   scopes       text[] not null default '{}',

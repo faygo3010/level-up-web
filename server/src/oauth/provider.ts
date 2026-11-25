@@ -129,12 +129,17 @@ export class LevelUpOAuthProvider implements OAuthServerProvider {
   async exchangeRefreshToken(client: OAuthClientInformationFull, refreshToken: string, scopes?: string[]): Promise<OAuthTokens> {
     const tokenHash = hash(refreshToken)
     const record = await this.store.getToken(tokenHash)
+    if (record?.kind === 'rotated') {
+      // A refresh token used twice means it was copied: revoke everything this app holds for the user.
+      await this.store.revokeConnection(record.userId, record.clientId)
+      throw new InvalidGrantError('Refresh token already used; please reconnect')
+    }
     if (!record || record.kind !== 'refresh' || record.clientId !== client.client_id) throw new InvalidGrantError('Invalid refresh token')
     if (record.expiresAt < this.now()) throw new InvalidGrantError('Refresh token expired')
     const granted = scopes?.length ? scopes : record.scopes
     if (granted.some((s) => !record.scopes.includes(s))) throw new InvalidScopeError('Cannot widen scopes on refresh')
-    // Rotation: only after validating, consume it atomically so it works exactly once.
-    if (!(await this.store.takeToken(tokenHash))) throw new InvalidGrantError('Invalid refresh token')
+    // Rotation: only after validating, mark it used atomically so it works exactly once (and a replay is detectable).
+    if (!(await this.store.markRotated(tokenHash))) throw new InvalidGrantError('Invalid refresh token')
     return this.issue(record.userId, client.client_id, granted, record.resource)
   }
 
