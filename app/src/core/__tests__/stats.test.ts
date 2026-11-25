@@ -24,6 +24,11 @@ describe('tradeStats', () => {
     expect(s).toEqual({
       count: 3,
       wins: 1,
+      losses: 2,
+      breakeven: 0,
+      avgWin: 200,
+      avgLoss: -200,
+      expectancy: -66.67,
       winRate: 1 / 3,
       totalPnl: -200,
       planAdherence: 2 / 3,

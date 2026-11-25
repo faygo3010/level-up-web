@@ -1,21 +1,24 @@
 import { z } from 'zod'
 import { areaAdherence, bestStreak, currentStreak, dayScore, scheduledRoutines } from '../../../app/src/core/adherence'
 import { addDays, formatDay, monthKey, periodRange } from '../../../app/src/core/dates'
-import { describeDays, withUnit } from '../../../app/src/core/format'
+import { describeDays, formatMoney, withUnit } from '../../../app/src/core/format'
 import { goalProgress } from '../../../app/src/core/progress'
 import { moneySummary, tradeStats, workoutSummary } from '../../../app/src/core/stats'
 import type { AppState, DateKey, Goal, LogEntry } from '../../../app/src/core/types'
 import { areaName, dateArg, defineTool, findArea, type ToolContext } from './shared'
 
 const pct = (r: number | null) => (r === null ? 'n/a' : `${Math.round(r * 100)}%`)
-const money = (n: number, c: string) => `${n < 0 ? '-' : ''}${c}${Math.abs(n).toLocaleString('en-GB', { maximumFractionDigits: 2 })}`
+const money = formatMoney
 
 const PER: Record<Goal['period'], string> = { daily: 'day', weekly: 'week', monthly: 'month', yearly: 'year' }
 const PERIOD_WORD: Record<Goal['period'], string> = { daily: 'today', weekly: 'this week', monthly: 'this month', yearly: 'this year' }
 
 export function goalLine(state: AppState, goal: Goal, date: DateKey): string {
   const p = goalProgress(goal, state.goalEntries, date, state.settings.weekStartsOn, state.logs)
-  const status = { done: 'done', onTrack: 'on track', behind: 'behind pace', over: 'OVER budget' }[p.status]
+  const status =
+    goal.direction === 'atMost'
+      ? { done: 'within budget', onTrack: 'within pace', behind: 'spending ahead of pace', over: 'OVER budget' }[p.status]
+      : { done: 'done', onTrack: 'on track', behind: 'behind pace', over: 'over target' }[p.status]
   const kind = goal.direction === 'atMost' ? ' (budget: stay under)' : ''
   return `${goal.title}: ${withUnit(p.current, '')} / ${withUnit(goal.target, goal.unit)} ${PERIOD_WORD[goal.period]}${kind}, ${status} (id: ${goal.id})`
 }

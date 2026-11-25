@@ -6,7 +6,7 @@ import { expect, test } from './fixtures'
  * (a screen-reader copy of it also lives in the page).
  */
 async function progress(page: import('@playwright/test').Page) {
-  const line = page.getByText(/routines done/).filter({ visible: true })
+  const line = page.getByText(/routines done/).first()
   await expect(line).toBeVisible()
   const text = (await line.textContent())!
   const [, routines, routinesTotal] = text.match(/(?:All )?(\d+)(?: of (\d+))? routines done/)!
@@ -16,7 +16,7 @@ async function progress(page: import('@playwright/test').Page) {
 }
 
 const summary = (page: import('@playwright/test').Page, routines: number, routinesTotal: number, rules: number, rulesTotal: number) =>
-  expect(page.getByText(`${routines} of ${routinesTotal} routines done · ${rules} of ${rulesTotal} rules kept.`, { exact: false }).filter({ visible: true })).toBeVisible()
+  expect(page.getByText(`${routines} of ${routinesTotal} routines done · ${rules} of ${rulesTotal} rules kept.`, { exact: false }).first()).toBeVisible()
 
 test.describe('Morning check-in', () => {
   test('ticks routines and reviews rules, and it all survives a reload', async ({ app, page }) => {

@@ -8,7 +8,7 @@ import { expect, test } from './fixtures'
  */
 async function openArea(page: Page, name: string) {
   await expect(page.getByRole('button', { name: `Open ${name}` })).toBeAttached()
-  await page.getByRole('heading', { level: 3, name: new RegExp(`${name}$`) }).click()
+  await page.getByRole('heading', { level: 2, name: new RegExp(`${name}$`) }).click()
   await expect(page.getByRole('heading', { level: 1, name: new RegExp(name) })).toBeVisible()
 }
 

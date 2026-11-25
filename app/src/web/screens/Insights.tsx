@@ -11,7 +11,7 @@ import { areaAdherence, bestStreak, currentStreak, scoreHistory } from '../../co
 import { addDays, dateRange, formatDay, monthKey, periodRange } from '../../core/dates'
 import { goalProgress } from '../../core/progress'
 import type { AppState, DateKey } from '../../core/types'
-import { moneySummary, tradeStats, workoutSummary } from '../../core/stats'
+import { moneySummary, netByCategory, tradeStats, workoutSummary } from '../../core/stats'
 import { Empty, PageHeader, Section, Stat, money, pct, plural } from '../components/ui'
 import { useAreas, useStore } from '../store'
 
@@ -28,14 +28,21 @@ export function heatTone(score: number | null): HeatTone {
   return 'gray'
 }
 
-/** One honest sentence about trading discipline. */
-export function tradingVerdict(followedPnl: number, brokenPnl: number, brokenCount: number, currency: string, followedCount = 1): string {
-  if (brokenCount === 0) return 'Every trade this month followed the plan.'
-  if (brokenPnl < 0) {
-    const followed = followedCount > 0 ? ` Following them made ${money(followedPnl, currency)}.` : ' Every trade this month was off-plan.'
-    return `Breaking your rules cost ${money(-brokenPnl, currency)} this month.${followed}`
-  }
-  return `Off-plan trades made ${money(brokenPnl, currency)} this month. Luck isn't a system; keep tracking.`
+/** Below this many trades, comparing on-plan and off-plan results is mostly noise. */
+export const MIN_TRADES_TO_COMPARE = 10
+
+/** Plain facts about trading discipline. No causal claims from small samples. */
+export function tradingVerdict(
+  followed: { count: number; pnl: number },
+  broken: { count: number; pnl: number },
+  currency: string,
+): string {
+  if (broken.count === 0) return 'Every trade this month followed the plan.'
+  const off = `Off-plan: ${money(broken.pnl, currency)} across ${plural(broken.count, 'trade')}.`
+  const on = followed.count > 0 ? ` On-plan: ${money(followed.pnl, currency)} across ${plural(followed.count, 'trade')}.` : ' No on-plan trades yet.'
+  const total = followed.count + broken.count
+  const note = total < MIN_TRADES_TO_COMPARE ? ` Too few trades (${total}) to read much into the difference yet.` : ''
+  return `${off}${on}${note}`
 }
 
 /** The numbers behind "how is my week going?", in one place. */
@@ -47,9 +54,9 @@ export function weekSummary(state: AppState, today: DateKey) {
   }
   const days = dateRange(start, today)
   const rulesBroken = days.reduce((n, d) => n + Object.values(state.ruleChecks[d] ?? {}).filter((k) => k === false).length, 0)
-  const spent = state.logs.reduce((s, l) => (l.kind === 'money' && l.date >= start && l.money.amount < 0 ? s - l.money.amount : s), 0)
+  const spent = netByCategory(state.logs.flatMap((l) => (l.kind === 'money' && l.date >= start && l.date <= today ? [l.money] : []))).spending
   const budgetGoal = state.goals.find((g) => !g.archived && g.direction === 'atMost' && g.tracks === 'spending')
-  const budget = budgetGoal
+  const budget = budgetGoal && budgetGoal.target > 0
     ? { title: budgetGoal.title, used: goalProgress(budgetGoal, state.goalEntries, today, state.settings.weekStartsOn, state.logs).current / budgetGoal.target }
     : null
   return { adherence: avg(today), previous: avg(addDays(today, -7)), rulesBroken, trades: tradeStats(state.logs, start, today), spent, budget }
@@ -139,12 +146,15 @@ export function Insights() {
           <VStack gap={3}>
             <Grid columns={3} gap={2}>
               <Stat label="P&L" value={money(trades.totalPnl, currency)} />
-              <Stat label="Win rate" value={pct(trades.winRate)} hint={plural(trades.count, 'trade')} />
+              <Stat label="Win rate" value={pct(trades.winRate)} hint={`${trades.wins}W · ${trades.losses}L · ${trades.breakeven} BE`} />
               <Stat label="Followed plan" value={pct(trades.planAdherence)} />
+              <Stat label="Avg win" value={money(trades.avgWin, currency)} />
+              <Stat label="Avg loss" value={money(trades.avgLoss, currency)} />
+              <Stat label="Per trade" value={money(trades.expectancy, currency)} hint="expectancy" />
             </Grid>
             <Banner
-              status={trades.broken.count > 0 && trades.broken.pnl < 0 ? 'warning' : 'info'}
-              title={tradingVerdict(trades.followed.pnl, trades.broken.pnl, trades.broken.count, currency, trades.followed.count)}
+              status={trades.broken.count > 0 ? 'warning' : 'info'}
+              title={tradingVerdict(trades.followed, trades.broken, currency)}
             />
           </VStack>
         )}

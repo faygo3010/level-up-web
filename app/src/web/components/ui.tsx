@@ -8,6 +8,7 @@ import { Text } from '@astryxdesign/core/Text'
 import { Token } from '@astryxdesign/core/Token'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useEffect, useState, type ReactNode } from 'react'
+import { formatMoney } from '../../core/format'
 import type { GoalStatus } from '../../core/progress'
 import type { Area } from '../../core/types'
 
@@ -111,10 +112,7 @@ export const plural = (n: number, word: string): string => `${n} ${word}${n === 
 
 export const pct = (r: number | null): string => (r === null ? '—' : `${Math.round(r * 100)}%`)
 
-export function money(amount: number, currency: string): string {
-  const sign = amount < 0 ? '-' : ''
-  return `${sign}${currency}${Math.abs(amount).toLocaleString('en-GB', { maximumFractionDigits: 2 })}`
-}
+export const money = formatMoney
 
 /**
  * Two-tap confirm for destructive actions. Works everywhere, including

@@ -213,7 +213,9 @@ describe('Insights', () => {
       },
       '#insights',
     )
-    expect(screen.getByText(/Breaking your rules cost £200 this month\. Following them made £300\./)).toBeInTheDocument()
+    expect(screen.getByText('Off-plan: -£200 across 1 trade. On-plan: £300 across 1 trade. Too few trades (2) to read much into the difference yet.')).toBeInTheDocument()
+    expect(screen.getByText('1W · 1L · 0 BE')).toBeInTheDocument()
+    expect(screen.getByText('£50')).toBeInTheDocument() // expectancy per trade
     expect(screen.getByText('food')).toBeInTheDocument()
     expect(screen.getByRole('list', { name: 'Daily adherence, oldest first' }).children).toHaveLength(35)
     expect(screen.getByRole('listitem', { name: new RegExp(`${formatDay(today())}: `) })).toBeInTheDocument()

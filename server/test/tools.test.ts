@@ -1,4 +1,5 @@
 import { starterState } from '../../app/src/core/defaults'
+import { parseLossLimit } from '../src/tools/coach'
 import type { AppState } from '../../app/src/core/types'
 import { TOOLS, ToolError, type ToolContext, type ToolResult } from '../src/tools'
 
@@ -276,7 +277,7 @@ describe('get_spending (expense tracker pattern)', () => {
 describe('pre_trade_check (pre-trade brief pattern, grounded in the user’s own rules)', () => {
   it('clears the user when nothing is broken', () => {
     const { text } = call('pre_trade_check', {})
-    expect(text).toMatch(/No rule says stop/)
+    expect(text).toMatch(/No limit you wrote has been hit yet/)
     expect(text).toContain('Max 1% account risk per trade')
     expect(text).toContain('Not financial advice')
   })
@@ -397,5 +398,64 @@ describe('API review fixes', () => {
     expect(TOOLS.filter((t) => t.idempotent).map((t) => t.name).sort()).toEqual(
       ['check_rule', 'complete_routine', 'restore_item', 'update_area', 'update_goal', 'update_journal_entry', 'update_routine', 'update_rule', 'update_settings'],
     )
+  })
+})
+
+describe('finance review fixes', () => {
+  const withRule = (text: string) => write('update_rule', { rule: 'trade-daily-loss', text })
+  const lose = (s: ReturnType<typeof withRule>, pnl: number) => write('add_journal_entry', { kind: 'trade', symbol: 'ES', pnl, followed_plan: true }, s)
+
+  it('pre_trade_check enforces money loss limits against today’s P&L', () => {
+    let s = withRule('Max daily loss £200')
+    s = lose(s, -150)
+    expect(call('pre_trade_check', {}, s).text).toMatch(/£50 left before your daily loss limit/)
+    s = lose(s, -450)
+    expect(call('pre_trade_check', {}, s).text).toMatch(/STOP: your rule "Max daily loss £200", and you are down -£600 today/)
+  })
+
+  it('reads "in a row" as a losing streak, not a total', () => {
+    let s = withRule('Stop after 2 losses in a row')
+    s = lose(lose(s, -10), 20)
+    s = lose(s, -10)
+    expect(call('pre_trade_check', {}, s).text).not.toMatch(/STOP/)
+    s = lose(s, -10)
+    expect(call('pre_trade_check', {}, s).text).toMatch(/STOP: .*2 losses in a row/)
+  })
+
+  it('never reassures when a limit can’t be checked', () => {
+    const pctRule = call('pre_trade_check', {}, withRule('Stop if down 2% on the day')).text
+    expect(pctRule).toMatch(/Can't check "Stop if down 2% on the day" .*account size/)
+    expect(pctRule).not.toMatch(/No limit you wrote has been hit/)
+    const vague = call('pre_trade_check', {}, withRule('Know when to stop losing')).text
+    expect(vague).toMatch(/Couldn't read a limit in "Know when to stop losing"; check it yourself/)
+  })
+
+  it('get_spending nets refunds and formats pennies', () => {
+    let s = write('add_journal_entry', { kind: 'money', amount: 50, category: 'Shopping' })
+    s = write('add_journal_entry', { kind: 'money', amount: 50, income: true, category: 'shopping' }, s)
+    s = write('add_journal_entry', { kind: 'money', amount: 12.5, category: 'food' }, s)
+    expect(call('get_spending', {}, s).text).toMatch(/Spent £12.50, received £0, net -£12.50/)
+  })
+
+  it('describes budget pace in plain words', () => {
+    const s = write('log_goal_progress', { goal: 'Discretionary spending', amount: 390 })
+    expect(call('get_today', {}, s).text).toMatch(/Discretionary spending: 390 \/ £400 this month \(budget: stay under\), spending ahead of pace/)
+  })
+})
+
+describe('parseLossLimit', () => {
+  it.each([
+    ['Max daily loss £200', { kind: 'money', amount: 200 }],
+    ['Stop if down $1,500 on the day', { kind: 'money', amount: 1500 }],
+    ['2 losers and done', { kind: 'count', n: 2, inARow: false }],
+    ['Seven losses max', { kind: 'count', n: 7, inARow: false }],
+    ['Stop after two consecutive losses', { kind: 'count', n: 2, inARow: true }],
+    ['Stop after 3 losses in a row', { kind: 'count', n: 3, inARow: true }],
+    ['Stop if down 2% on the day', { kind: 'percent' }],
+    ['Know when to stop losing', { kind: 'unreadable' }],
+    ['Stop loss set before entry', null],
+    ['Max 1% account risk per trade', null],
+  ])('%s', (text, expected) => {
+    expect(parseLossLimit(text)).toEqual(expected)
   })
 })

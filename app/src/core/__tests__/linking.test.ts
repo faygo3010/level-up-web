@@ -7,7 +7,7 @@ import { goal, routine, stateWith } from './fixtures'
 
 const D = '2026-11-24' // Tuesday
 const base = { date: D, text: '', createdAt: 0 }
-const money = (id: string, amount: number, areaId = 'finance'): LogEntry => ({ ...base, id, areaId, kind: 'money', money: { amount, category: 'food' } })
+const money = (id: string, amount: number, areaId = 'finance', category = amount > 0 ? 'salary' : 'food'): LogEntry => ({ ...base, id, areaId, kind: 'money', money: { amount, category } })
 const workout = (id: string, minutes: number): LogEntry => ({ ...base, id, areaId: 'fitness', kind: 'workout', workout: { activity: 'Run', minutes } })
 
 describe('goals that track the journal', () => {

@@ -1,4 +1,5 @@
 import { dateRange, periodRange } from './dates'
+import { netByCategory } from './stats'
 import type { DateKey, Goal, GoalEntry, LogEntry } from './types'
 
 export type GoalStatus = 'done' | 'onTrack' | 'behind' | 'over'
@@ -18,10 +19,6 @@ export interface GoalProgress {
 /** How much one journal entry contributes to a goal that tracks the journal. */
 function journalValue(goal: Goal, l: LogEntry): number {
   switch (goal.tracks) {
-    case 'spending':
-      return l.kind === 'money' && l.money.amount < 0 ? -l.money.amount : 0
-    case 'income':
-      return l.kind === 'money' && l.money.amount > 0 ? l.money.amount : 0
     case 'workouts':
       return l.kind === 'workout' ? 1 : 0
     case 'workoutMinutes':
@@ -40,8 +37,13 @@ export function sumInPeriod(goal: Goal, entries: readonly GoalEntry[], on: DateK
   const inPeriod = (d: DateKey) => d >= start && d <= end
   const manual = entries.filter((e) => e.goalId === goal.id && inPeriod(e.date)).reduce((sum, e) => sum + e.value, 0)
   if (!goal.tracks) return manual
-  const fromJournal = logs.filter((l) => l.areaId === goal.areaId && inPeriod(l.date)).reduce((sum, l) => sum + journalValue(goal, l), 0)
-  return manual + fromJournal
+  const inScope = logs.filter((l) => l.areaId === goal.areaId && inPeriod(l.date))
+  if (goal.tracks === 'spending' || goal.tracks === 'income') {
+    // Refunds net against their category rather than counting as income.
+    const net = netByCategory(inScope.flatMap((l) => (l.kind === 'money' ? [l.money] : [])))
+    return manual + (goal.tracks === 'spending' ? net.spending : net.income)
+  }
+  return manual + inScope.reduce((sum, l) => sum + journalValue(goal, l), 0)
 }
 
 function elapsedFraction(goal: Goal, on: DateKey, weekStartsOn: 0 | 1): number {
@@ -61,8 +63,9 @@ export function goalProgress(
   const current = sumInPeriod(goal, entries, on, weekStartsOn, logs)
   const { target } = goal
   const expected = target * elapsedFraction(goal, on, weekStartsOn)
-  const ratio = target <= 0 ? 1 : Math.min(current / target, 1)
-  const remaining = Math.max(target - current, 0)
+  // Keep the bar in range even when progress is negative (e.g. a P&L goal in drawdown).
+  const ratio = target <= 0 ? 1 : Math.max(0, Math.min(current / target, 1))
+  const remaining = Math.min(Math.max(target - current, 0), Math.max(target, 0))
 
   if (goal.direction === 'atMost') {
     const status: GoalStatus = current > target ? 'over' : current > expected ? 'behind' : 'onTrack'
