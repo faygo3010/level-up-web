@@ -14,7 +14,7 @@ The marketing landing page for **Level Up**, an AI life progress tracker. A sing
 4. Deploy. (Or use `render.yaml` via Render Blueprints.)
 
 ## Links
-- "Get the mobile app" / "Mobile App" → https://levelup-web-app.onrender.com
+- "Get the mobile app" / "Mobile App" → https://level-up-updated-look.vercel.app/
 - "View source on GitHub" / "Source" → https://github.com/faygo3010/level-up-web
 
 Edit the `href`s in `index.html` to change them.
