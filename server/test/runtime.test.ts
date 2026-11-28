@@ -3,7 +3,7 @@ import type { RemoteRepo } from '../../app/src/core/sync'
 import { runTool, type Caller } from '../src/mcp'
 import { LevelUpOAuthProvider, SCOPES, TTL, hash } from '../src/oauth/provider'
 import { MemoryActivityStore, MemoryOAuthStore, MemoryStateStore } from '../src/stores/memory'
-import { TOOLS } from '../src/tools'
+import { TOOLS } from '../../app/src/agent/index.js'
 
 const tool = (name: string) => TOOLS.find((t) => t.name === name)!
 const caller: Caller = { userId: 'u1', clientId: 'c1', clientName: 'Claude', scopes: [SCOPES.read, SCOPES.write] }

@@ -1,5 +1,5 @@
-import { MAX_FORGOTTEN, MAX_TOMBSTONES } from './schema'
-import type { AppState, DateKey } from './types'
+import { MAX_FORGOTTEN, MAX_TOMBSTONES } from './schema.js'
+import type { AppState, DateKey } from './types.js'
 
 function unionById<T extends { id: string }>(primary: readonly T[], secondary: readonly T[]): T[] {
   const seen = new Set(primary.map((i) => i.id))

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { DEFAULT_SETTINGS } from './defaults'
+import { DEFAULT_SETTINGS } from './defaults.js'
 
 /** Runtime validation for imported backups and persisted state. */
 

@@ -1,11 +1,11 @@
 import { z } from 'zod'
-import { areaAdherence, bestStreak, currentStreak, dayScore, scheduledRoutines } from '../../../app/src/core/adherence'
-import { addDays, formatDay, monthKey, periodRange } from '../../../app/src/core/dates'
-import { describeDays, formatMoney, withUnit } from '../../../app/src/core/format'
-import { goalProgress } from '../../../app/src/core/progress'
-import { moneySummary, tradeStats, workoutSummary } from '../../../app/src/core/stats'
-import type { AppState, DateKey, Goal, LogEntry } from '../../../app/src/core/types'
-import { areaName, dateArg, defineTool, findArea, type ToolContext } from './shared'
+import { areaAdherence, bestStreak, currentStreak, dayScore, scheduledRoutines } from '../core/adherence.js'
+import { addDays, formatDay, monthKey, periodRange } from '../core/dates.js'
+import { describeDays, formatMoney, withUnit } from '../core/format.js'
+import { goalProgress } from '../core/progress.js'
+import { moneySummary, tradeStats, workoutSummary } from '../core/stats.js'
+import type { AppState, DateKey, Goal, LogEntry } from '../core/types.js'
+import { areaName, dateArg, defineTool, findArea, type ToolContext } from './shared.js'
 
 const pct = (r: number | null) => (r === null ? 'n/a' : `${Math.round(r * 100)}%`)
 const money = formatMoney

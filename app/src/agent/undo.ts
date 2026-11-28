@@ -1,8 +1,8 @@
 import { z } from 'zod'
-import { reducer } from '../../../app/src/core/reducer'
-import type { LogEntry } from '../../../app/src/core/types'
-import { logLine } from './read'
-import { amountArg, dateArg, defineTool, findArea, findOne, nameArg, quote, resolveDate, ToolError } from './shared'
+import { reducer } from '../core/reducer.js'
+import type { LogEntry } from '../core/types.js'
+import { logLine } from './read.js'
+import { amountArg, dateArg, defineTool, findArea, findOne, nameArg, quote, resolveDate, ToolError } from './shared.js'
 
 /** Ways to correct mistakes, so a chatbot never has to fake an undo with a negative entry. */
 

@@ -1,4 +1,4 @@
-import type { DateKey, LogEntry, MoneyDetails, TradeDetails, WorkoutDetails } from './types'
+import type { DateKey, LogEntry, MoneyDetails, TradeDetails, WorkoutDetails } from './types.js'
 
 const inRange = (date: DateKey, from?: DateKey, to?: DateKey): boolean =>
   (from === undefined || date >= from) && (to === undefined || date <= to)

@@ -1,5 +1,5 @@
-import { addDays, dateRange, weekdayOf } from './dates'
-import type { AppState, DateKey, Routine } from './types'
+import { addDays, dateRange, weekdayOf } from './dates.js'
+import type { AppState, DateKey, Routine } from './types.js'
 
 export interface DayScore {
   readonly done: number

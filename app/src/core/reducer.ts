@@ -1,5 +1,5 @@
-import { MAX_FORGOTTEN, MAX_TOMBSTONES } from './schema'
-import type { AppState, Area, DateKey, Goal, GoalEntry, LogEntry, Memory, Routine, Rule, Settings } from './types'
+import { MAX_FORGOTTEN, MAX_TOMBSTONES } from './schema.js'
+import type { AppState, Area, DateKey, Goal, GoalEntry, LogEntry, Memory, Routine, Rule, Settings } from './types.js'
 
 /** Collections that hold editable, archivable definitions of your system. */
 export interface Collections {

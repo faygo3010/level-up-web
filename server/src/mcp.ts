@@ -7,7 +7,7 @@ import { todayIn } from '../../app/src/core/dates'
 import { appStateSchema } from '../../app/src/core/schema'
 import { SCOPES } from './oauth/provider'
 import type { Stores } from './stores/types'
-import { TOOLS, ToolError, type ToolDef } from './tools'
+import { TOOLS, ToolError, type ToolDef } from '../../app/src/agent/index.js'
 
 const MAX_ATTEMPTS = 3
 /** Matches the activity_log.summary length check in the database. */

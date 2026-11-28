@@ -1,7 +1,7 @@
 import { z } from 'zod'
-import { reducer } from '../../../app/src/core/reducer'
-import type { LogEntry } from '../../../app/src/core/types'
-import { goalLine, logLine } from './read'
+import { reducer } from '../core/reducer.js'
+import type { LogEntry } from '../core/types.js'
+import { goalLine, logLine } from './read.js'
 import {
   dateArg,
   defaultAreaFor,
@@ -13,7 +13,7 @@ import {
   resolveDate,
   ToolError,
   amountArg,
-} from './shared'
+} from './shared.js'
 
 const required = <T>(value: T | undefined, field: string, kind: string): T => {
   if (value === undefined) throw new ToolError(`A ${kind} entry needs "${field}".`)

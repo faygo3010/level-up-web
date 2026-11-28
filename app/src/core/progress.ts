@@ -1,6 +1,6 @@
-import { dateRange, periodRange } from './dates'
-import { netByCategory } from './stats'
-import type { DateKey, Goal, GoalEntry, LogEntry } from './types'
+import { dateRange, periodRange } from './dates.js'
+import { netByCategory } from './stats.js'
+import type { DateKey, Goal, GoalEntry, LogEntry } from './types.js'
 
 export type GoalStatus = 'done' | 'onTrack' | 'behind' | 'over'
 

@@ -1,4 +1,4 @@
-import type { AppState, Area, DateKey, Goal, Routine, Rule, Settings, Weekday } from './types'
+import type { AppState, Area, DateKey, Goal, Routine, Rule, Settings, Weekday } from './types.js'
 
 export const DEFAULT_SETTINGS: Settings = {
   currency: '£',

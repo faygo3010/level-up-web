@@ -1,8 +1,8 @@
 import { z } from 'zod'
-import { AREA_COLORS } from '../../../app/src/core/defaults'
-import { describeDays, withUnit } from '../../../app/src/core/format'
-import { reducer } from '../../../app/src/core/reducer'
-import type { Goal } from '../../../app/src/core/types'
+import { AREA_COLORS } from '../core/defaults.js'
+import { describeDays, withUnit } from '../core/format.js'
+import { reducer } from '../core/reducer.js'
+import type { Goal } from '../core/types.js'
 import {
   areaName,
   daysArg,
@@ -17,7 +17,7 @@ import {
   ToolError,
   amountArg,
   iconArg,
-} from './shared'
+} from './shared.js'
 
 const areaArg = z.string().trim().min(1).max(200).describe('The area id or name, e.g. "Trading".')
 const PER: Record<Goal['period'], string> = { daily: 'day', weekly: 'week', monthly: 'month', yearly: 'year' }

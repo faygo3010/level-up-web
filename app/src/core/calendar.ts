@@ -1,5 +1,5 @@
-import { addDays, weekdayOf } from './dates'
-import type { AppState, DateKey, TimeOfDay } from './types'
+import { addDays, weekdayOf } from './dates.js'
+import type { AppState, DateKey, TimeOfDay } from './types.js'
 
 /**
  * Export routines as an iCalendar (.ics) file so they show up in Google,

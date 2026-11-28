@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { AppState, Area, DateKey, Weekday } from '../../../app/src/core/types'
+import type { AppState, Area, DateKey, Weekday } from '../core/types.js'
 
 export interface ToolContext {
   /** Today in the user's time zone. */

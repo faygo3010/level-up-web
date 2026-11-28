@@ -1,5 +1,5 @@
-import { appStateSchema } from './schema'
-import type { AppState } from './types'
+import { appStateSchema } from './schema.js'
+import type { AppState } from './types.js'
 
 export type ParseResult = { readonly ok: true; readonly state: AppState } | { readonly ok: false; readonly error: string }
 

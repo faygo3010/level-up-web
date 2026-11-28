@@ -1,7 +1,7 @@
 import { starterState } from '../../app/src/core/defaults'
-import { parseLossLimit } from '../src/tools/coach'
+import { parseLossLimit } from '../../app/src/agent/coach.js'
 import type { AppState } from '../../app/src/core/types'
-import { TOOLS, ToolError, type ToolContext, type ToolResult } from '../src/tools'
+import { TOOLS, ToolError, type ToolContext, type ToolResult } from '../../app/src/agent/index.js'
 
 const TODAY = '2026-11-24' // Tuesday
 let ids = 0

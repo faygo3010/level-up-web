@@ -1,5 +1,5 @@
-import { mergeStates } from './merge'
-import type { AppState } from './types'
+import { mergeStates } from './merge.js'
+import type { AppState } from './types.js'
 
 /**
  * Platform-independent sync. The whole AppState is one document per account,
