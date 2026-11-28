@@ -53,7 +53,8 @@ services:
     runtime: node
     rootDir: server
     plan: starter
-    buildCommand: npm ci && npm --prefix ../app ci && npm test && npm run build
+    # --include=dev: NODE_ENV=production would otherwise skip the test and build tools.
+    buildCommand: npm ci --include=dev && npm --prefix ../app ci --include=dev && npm test && npm run build
     startCommand: npm start
     healthCheckPath: /healthz
     envVars:
