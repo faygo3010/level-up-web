@@ -97,6 +97,8 @@ export interface EmailAuth {
   sendCode(email: string): Promise<void>
   /** Returns the user id, or null if the code is wrong or expired. */
   verifyCode(email: string, code: string): Promise<string | null>
+  /** Returns the user id, or null if the email/password pair is wrong. */
+  verifyPassword(email: string, password: string): Promise<string | null>
 }
 
 /** Verifies a Level Up app session (for the app's "Connected AI apps" screen). */

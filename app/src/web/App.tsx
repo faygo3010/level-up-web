@@ -10,6 +10,7 @@ import { Today } from './screens/Today'
 const Areas = lazy(() => import('./screens/Areas').then((m) => ({ default: m.Areas })))
 const Journal = lazy(() => import('./screens/Journal').then((m) => ({ default: m.Journal })))
 const Insights = lazy(() => import('./screens/Insights').then((m) => ({ default: m.Insights })))
+const Coach = lazy(() => import('./screens/Coach').then((m) => ({ default: m.Coach })))
 const Settings = lazy(() => import('./screens/Settings').then((m) => ({ default: m.Settings })))
 
 const TABS = [
@@ -17,6 +18,7 @@ const TABS = [
   { key: 'areas', label: 'Areas', Screen: Areas },
   { key: 'journal', label: 'Journal', Screen: Journal },
   { key: 'insights', label: 'Insights', Screen: Insights },
+  { key: 'coach', label: 'Coach', Screen: Coach },
   { key: 'prefs', label: 'Settings', Screen: Settings },
 ] as const
 

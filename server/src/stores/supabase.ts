@@ -224,6 +224,10 @@ export function supabaseStores(url: string, serviceRoleKey: string, anonKey: str
         const { data, error } = await fresh().auth.verifyOtp({ email, token: code, type: 'email' })
         return error || !data.user ? null : data.user.id
       },
+      async verifyPassword(email, password) {
+        const { data, error } = await fresh().auth.signInWithPassword({ email, password })
+        return error || !data.user ? null : data.user.id
+      },
     },
     sessions: {
       async verify(token) {

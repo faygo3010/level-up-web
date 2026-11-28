@@ -1,13 +1,14 @@
 import { Banner } from '@astryxdesign/core/Banner'
 import { Button } from '@astryxdesign/core/Button'
+import { Divider } from '@astryxdesign/core/Divider'
 import { FormLayout } from '@astryxdesign/core/FormLayout'
 import { HStack } from '@astryxdesign/core/HStack'
+import { SegmentedControl, SegmentedControlItem } from '@astryxdesign/core/SegmentedControl'
 import { Text } from '@astryxdesign/core/Text'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
-import { useSync } from '../sync/useSync'
-import { AiConnections } from './AiConnections'
+import { useSync, type OAuthProvider } from '../sync/useSync'
 import { Section } from './ui'
 
 function syncedLabel(at: number | null): string {
@@ -16,7 +17,8 @@ function syncedLabel(at: number | null): string {
   return mins < 1 ? 'Synced just now' : `Synced ${mins} min ago`
 }
 
-function SignIn() {
+/** The original passwordless option: a 6-digit code by email. */
+function CodeSignIn() {
   const sync = useSync()
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
@@ -35,9 +37,6 @@ function SignIn() {
 
   return (
     <VStack gap={3}>
-      <Text color="secondary">
-        Optional. Sign in to back up your system and use it on your phone and laptop. Without an account, everything stays on this device.
-      </Text>
       <FormLayout>
         <TextInput label="Email" type="email" value={email} isDisabled={sent} onChange={setEmail} placeholder="you@example.com" onEnter={submit} />
         {sent && <TextInput label="6-digit code from the email" value={code} onChange={setCode} placeholder="123456" onEnter={submit} />}
@@ -60,24 +59,116 @@ function SignIn() {
   )
 }
 
-const CONNECTOR_URL = import.meta.env.VITE_CONNECTOR_URL as string | undefined
-
-function AiAppsSection() {
+function PasswordSignIn() {
   const sync = useSync()
-  if (!CONNECTOR_URL) return null
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [busy, setBusy] = useState<'in' | 'up' | 'reset' | null>(null)
+  const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
+
+  const act = async (kind: 'in' | 'up' | 'reset') => {
+    setBusy(kind)
+    setError('')
+    setInfo('')
+    if (kind === 'in') {
+      const err = await sync.signInWithPassword(email, password)
+      if (err) setError(err)
+    } else if (kind === 'up') {
+      const r = await sync.signUpWithPassword(email, password)
+      if (r.error) setError(r.error)
+      if (r.info) setInfo(r.info)
+    } else {
+      const err = await sync.sendPasswordReset(email)
+      if (err) setError(err)
+      else setInfo('If that email has an account, a reset link is on its way.')
+    }
+    setBusy(null)
+  }
+
   return (
-    <Section title="AI apps">
-      {sync.status === 'signedOut' ? (
-        <Text color="secondary">Sign in above to connect Claude, ChatGPT or another AI app to your Level Up.</Text>
-      ) : (
-        <AiConnections connectorUrl={CONNECTOR_URL} getToken={sync.getAccessToken} onRefresh={sync.syncNow} />
-      )}
+    <VStack gap={3}>
+      <FormLayout>
+        <TextInput label="Email" type="email" value={email} onChange={setEmail} placeholder="you@example.com" />
+        <TextInput label="Password" type="password" value={password} onChange={setPassword} description="At least 8 characters." onEnter={() => void act('in')} />
+      </FormLayout>
+      {error && <Banner status="error" title={error} />}
+      {info && <Banner status="info" title={info} />}
+      <HStack gap={2} justify="between" wrap="wrap">
+        <Button variant="ghost" size="sm" label="Forgot password?" isLoading={busy === 'reset'} onClick={() => void act('reset')} />
+        <HStack gap={2}>
+          <Button variant="secondary" label="Create account" isLoading={busy === 'up'} onClick={() => void act('up')} />
+          <Button variant="primary" label="Sign in" isLoading={busy === 'in'} onClick={() => void act('in')} />
+        </HStack>
+      </HStack>
+    </VStack>
+  )
+}
+
+function SignIn() {
+  const sync = useSync()
+  const [method, setMethod] = useState<'password' | 'code'>('password')
+  const [error, setError] = useState('')
+
+  const provider = async (p: OAuthProvider) => {
+    setError('')
+    const err = await sync.signInWithProvider(p)
+    if (err) setError(err)
+  }
+
+  return (
+    <VStack gap={3}>
+      <Text color="secondary">
+        Sign in to back up your system, sync your phone and laptop, and connect your AI coach. Without an account, everything stays on this device.
+      </Text>
+      <VStack gap={2} hAlign="stretch">
+        <Button variant="secondary" label="Continue with Apple" onClick={() => void provider('apple')} />
+        <Button variant="secondary" label="Continue with Google" onClick={() => void provider('google')} />
+      </VStack>
+      {error && <Banner status="error" title={error} />}
+      <Divider />
+      <SegmentedControl label="Sign in with email" value={method} onChange={(v) => setMethod(v as 'password' | 'code')} layout="fill" size="sm">
+        <SegmentedControlItem value="password" label="Password" />
+        <SegmentedControlItem value="code" label="Email code" />
+      </SegmentedControl>
+      {method === 'password' ? <PasswordSignIn /> : <CodeSignIn />}
+    </VStack>
+  )
+}
+
+/** Shown after opening a password-reset link. */
+function NewPassword() {
+  const sync = useSync()
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  return (
+    <Section title="Choose a new password">
+      <VStack gap={3}>
+        <TextInput label="New password" type="password" value={password} onChange={setPassword} description="At least 8 characters." />
+        {error && <Banner status="error" title={error} />}
+        <HStack justify="end">
+          <Button
+            variant="primary"
+            label="Save password"
+            isLoading={busy}
+            onClick={async () => {
+              setBusy(true)
+              const err = await sync.updatePassword(password)
+              setBusy(false)
+              setError(err ?? '')
+            }}
+          />
+        </HStack>
+      </VStack>
     </Section>
   )
 }
 
 function AccountCard() {
   const sync = useSync()
+
+  if (sync.recoveringPassword) return <NewPassword />
 
   if (!sync.configured) {
     return (
@@ -113,7 +204,6 @@ export function AccountSection() {
   return (
     <>
       <AccountCard />
-      <AiAppsSection />
     </>
   )
 }

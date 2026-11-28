@@ -373,3 +373,30 @@ describe('app API (connected apps & activity)', () => {
     expect(list.data).toEqual([])
   })
 })
+
+describe('password sign-in on the connect page', () => {
+  it('connects with an email and password, and rejects a wrong one', async () => {
+    stores.emailAuth.passwords.set(EMAIL, 'correct-horse')
+    const clientId = await register()
+    const { verifier, challenge } = pkce()
+    const req = await startAuthorize(clientId, challenge)
+    const cookie = await openSignIn(req)
+    const page = await (await fetch(`${base}/signin?req=${req}`, { headers: { cookie } })).text()
+    expect(page).toContain('action="/signin/password"')
+    const wrong = await fetch(`${base}/signin/password`, form({ req, email: EMAIL, password: 'nope' }, cookie))
+    expect(wrong.status).toBe(400)
+    expect(await wrong.text()).toContain('Email or password is incorrect.')
+    const ok = await fetch(`${base}/signin/password`, form({ req, email: EMAIL, password: 'correct-horse' }, cookie))
+    expect(await ok.text()).toContain('Allow Test Chat to use your Level Up?')
+    const done = await fetch(`${base}/signin/consent`, form({ req, decision: 'allow' }, cookie))
+    const code = new URL(done.headers.get('location')!).searchParams.get('code')!
+    expect((await token({ grant_type: 'authorization_code', code, code_verifier: verifier, redirect_uri: REDIRECT, client_id: clientId })).status).toBe(200)
+  })
+
+  it('needs the browser cookie for password sign-in too', async () => {
+    stores.emailAuth.passwords.set(EMAIL, 'correct-horse')
+    const req = await startAuthorize(await register(), pkce().challenge)
+    await openSignIn(req)
+    expect((await fetch(`${base}/signin/password`, form({ req, email: EMAIL, password: 'correct-horse' }))).status).toBe(400)
+  })
+})

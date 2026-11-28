@@ -124,6 +124,11 @@ export class MemoryEmailAuth implements EmailAuth {
   async verifyCode(email: string, code: string) {
     return this.sent.get(email) === code ? `user:${email}` : null
   }
+  /** Test accounts with passwords (email -> password). */
+  readonly passwords = new Map<string, string>()
+  async verifyPassword(email: string, password: string) {
+    return this.passwords.get(email) === password ? `user:${email}` : null
+  }
 }
 
 export class MemorySessions implements SessionVerifier {

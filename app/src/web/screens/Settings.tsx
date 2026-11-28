@@ -13,7 +13,6 @@ import { parseState, serializeState } from '../../core/storage'
 import type { AppState } from '../../core/types'
 import { routinesToIcs } from '../../core/calendar'
 import { AccountSection } from '../components/AccountSection'
-import { CoachMemory } from '../components/CoachMemory'
 import { ConfirmButton, PageHeader, Section } from '../components/ui'
 import { useStore } from '../store'
 
@@ -100,8 +99,6 @@ export function Settings() {
       {saveFailed && <Banner status="error" title="Couldn't save to this browser's storage. Export a backup so you don't lose anything." />}
 
       <AccountSection />
-
-      <CoachMemory />
 
       <Section title="Calendar">
         <VStack gap={2} hAlign="stretch">

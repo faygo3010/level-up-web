@@ -24,6 +24,16 @@ interface SyncApi {
   readonly error: string | null
   sendCode(email: string): Promise<string | null>
   verifyCode(email: string, code: string): Promise<string | null>
+  /** Redirects to Google or Apple; returns an error message if it couldn't start. */
+  signInWithProvider(provider: OAuthProvider): Promise<string | null>
+  signInWithPassword(email: string, password: string): Promise<string | null>
+  /** Returns { error } or { info } (e.g. "check your email to confirm"). */
+  signUpWithPassword(email: string, password: string): Promise<{ error?: string; info?: string }>
+  sendPasswordReset(email: string): Promise<string | null>
+  /** Set a new password after following a reset link. */
+  updatePassword(password: string): Promise<string | null>
+  /** True after the user opened a password-reset link and must choose a new password. */
+  readonly recoveringPassword: boolean
   signOut(): Promise<void>
   syncNow(): void
   /** Current app session token, for calling the connector's API. */
@@ -34,6 +44,12 @@ const SyncContext = createContext<SyncApi | null>(null)
 
 export const emailSchema = z.string().trim().toLowerCase().email().max(254)
 export const codeSchema = z.string().trim().regex(/^\d{6,10}$/)
+export const passwordSchema = z.string().min(8, 'Use at least 8 characters.').max(72, 'Use at most 72 characters.')
+
+export type OAuthProvider = 'google' | 'apple'
+
+/** Where Supabase sends people back after Google/Apple or a reset link: this app, without any query/hash. */
+const returnUrl = () => `${window.location.origin}${window.location.pathname}`
 
 const metaSchema = z.object({ baseVersion: z.string().nullable(), dirty: z.boolean() })
 
@@ -71,21 +87,29 @@ function writeOwner(userId: string | null) {
   }
 }
 
-function useSession(supabase: SupabaseClient | null): Session | null {
+function useSession(supabase: SupabaseClient | null): { session: Session | null; recovering: boolean; endRecovery: () => void } {
   const [session, setSession] = useState<Session | null>(null)
+  const [recovering, setRecovering] = useState(false)
   useEffect(() => {
     if (!supabase) return
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
-    const { data } = supabase.auth.onAuthStateChange((_event, s) => setSession(s))
+    const { data } = supabase.auth.onAuthStateChange((event, s) => {
+      setSession(s)
+      if (event === 'PASSWORD_RECOVERY') setRecovering(true)
+      // Tidy the ?code=… left by Google/Apple sign-in out of the address bar.
+      if (event === 'SIGNED_IN' && new URLSearchParams(window.location.search).has('code')) {
+        window.history.replaceState(null, '', `${window.location.pathname}${window.location.hash}`)
+      }
+    })
     return () => data.subscription.unsubscribe()
   }, [supabase])
-  return session
+  return { session, recovering, endRecovery: () => setRecovering(false) }
 }
 
 /** Owns sign-in and keeps the store in sync with the account in the background. */
 export function SyncProvider({ children, supabase = getSupabase() }: { children: ReactNode; supabase?: SupabaseClient | null }) {
   const { state, dispatch, today } = useStore()
-  const session = useSession(supabase)
+  const { session, recovering, endRecovery } = useSession(supabase)
   const userId = session?.user.id ?? null
   const repo = useMemo<RemoteRepo | null>(() => (supabase && userId ? supabaseRepo(supabase, userId) : null), [supabase, userId])
 
@@ -180,6 +204,47 @@ export function SyncProvider({ children, supabase = getSupabase() }: { children:
         const { error: e } = await supabase.auth.verifyOtp({ email: email.data, token: code.data, type: 'email' })
         return e ? 'That code is wrong or expired. Request a new one.' : null
       },
+      async signInWithProvider(provider) {
+        if (!supabase) return 'Sync is not set up on this build.'
+        const { error: e } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: returnUrl() } })
+        return e ? `Couldn't start ${provider === 'apple' ? 'Apple' : 'Google'} sign-in. Try again.` : null
+      },
+      async signInWithPassword(rawEmail, password) {
+        const email = emailSchema.safeParse(rawEmail)
+        if (!email.success) return 'Enter a valid email address.'
+        if (!password) return 'Enter your password.'
+        if (!supabase) return 'Sync is not set up on this build.'
+        const { error: e } = await supabase.auth.signInWithPassword({ email: email.data, password })
+        // Same message for unknown email and wrong password, so accounts can't be probed.
+        return e ? 'Email or password is incorrect.' : null
+      },
+      async signUpWithPassword(rawEmail, rawPassword) {
+        const email = emailSchema.safeParse(rawEmail)
+        if (!email.success) return { error: 'Enter a valid email address.' }
+        const password = passwordSchema.safeParse(rawPassword)
+        if (!password.success) return { error: password.error.issues[0]?.message ?? 'Choose a stronger password.' }
+        if (!supabase) return { error: 'Sync is not set up on this build.' }
+        const { data, error: e } = await supabase.auth.signUp({ email: email.data, password: password.data, options: { emailRedirectTo: returnUrl() } })
+        if (e) return { error: "Couldn't create the account. If you already have one, sign in instead." }
+        return data.session ? {} : { info: 'Check your email to confirm your account, then sign in.' }
+      },
+      async sendPasswordReset(rawEmail) {
+        const email = emailSchema.safeParse(rawEmail)
+        if (!email.success) return 'Enter your email address first.'
+        if (!supabase) return 'Sync is not set up on this build.'
+        await supabase.auth.resetPasswordForEmail(email.data, { redirectTo: returnUrl() })
+        return null // always "sent", so accounts can't be probed
+      },
+      async updatePassword(rawPassword) {
+        const password = passwordSchema.safeParse(rawPassword)
+        if (!password.success) return password.error.issues[0]?.message ?? 'Choose a stronger password.'
+        if (!supabase) return 'Sync is not set up on this build.'
+        const { error: e } = await supabase.auth.updateUser({ password: password.data })
+        if (e) return "Couldn't update the password. Open the reset link again."
+        endRecovery()
+        return null
+      },
+      recoveringPassword: recovering,
       async signOut() {
         await supabase?.auth.signOut()
         meta.current = { ...NEVER_SYNCED, dirty: true }
@@ -193,7 +258,7 @@ export function SyncProvider({ children, supabase = getSupabase() }: { children:
         return data.session?.access_token ?? null
       },
     }
-  }, [supabase, userId, session, syncing, error, lastSynced, run])
+  }, [supabase, userId, session, syncing, error, lastSynced, run, recovering, endRecovery])
 
   return <SyncContext.Provider value={api}>{children}</SyncContext.Provider>
 }

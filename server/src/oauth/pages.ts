@@ -32,11 +32,16 @@ export function emailPage(req: string, appName: string, error?: string): string 
   return page(
     'Sign in',
     `<h1>Connect ${esc(appName)}</h1>
-<p>Sign in with the email you use for Level Up. We'll email you a 6-digit code.</p>
+<p>Sign in with your Level Up account.</p>
 ${errorLine(error)}
-<form method="post" action="/signin/email">${hidden('req', req)}
+<form method="post" action="/signin/password">${hidden('req', req)}
 <label>Email<input type="email" name="email" autocomplete="email" required autofocus maxlength="254"></label>
-<button type="submit">Email me a code</button></form>`,
+<label>Password<input type="password" name="password" autocomplete="current-password" required maxlength="72"></label>
+<button type="submit">Sign in</button></form>
+<p>Signed up with Google, Apple or no password? Get a code instead:</p>
+<form method="post" action="/signin/email">${hidden('req', req)}
+<label>Email<input type="email" name="email" autocomplete="email" required maxlength="254"></label>
+<button class="secondary" type="submit">Email me a code</button></form>`,
   )
 }
 

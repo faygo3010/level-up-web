@@ -297,7 +297,7 @@ describe('Coach memory and calendar', () => {
   it('shows what AI apps saved and lets you delete it', async () => {
     await renderApp(
       { ...starterState(today()), memories: [{ id: 'm1', text: 'Overtrades after a red morning', areaId: 'trading', createdAt: 1, source: 'Claude' }] },
-      '#prefs',
+      '#coach',
     )
     expect(screen.getByText('Overtrades after a red morning')).toBeInTheDocument()
     expect(screen.getByText(/Trading · saved by Claude/)).toBeInTheDocument()

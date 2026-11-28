@@ -16,7 +16,11 @@ async function progress(page: import('@playwright/test').Page) {
 }
 
 const summary = (page: import('@playwright/test').Page, routines: number, routinesTotal: number, rules: number, rulesTotal: number) =>
-  expect(page.getByText(`${routines} of ${routinesTotal} routines done · ${rules} of ${rulesTotal} rules kept.`, { exact: false }).first()).toBeVisible()
+  expect(
+    page
+      .getByText(`${routines === routinesTotal ? `All ${routinesTotal}` : `${routines} of ${routinesTotal}`} routines done · ${rules} of ${rulesTotal} rules kept.`, { exact: false })
+      .first(),
+  ).toBeVisible()
 
 test.describe('Morning check-in', () => {
   test('ticks routines and reviews rules, and it all survives a reload', async ({ app, page }) => {

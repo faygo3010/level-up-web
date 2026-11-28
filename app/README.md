@@ -16,15 +16,37 @@ npm test           # unit + integration tests
 npm run coverage
 ```
 
-## Turn on accounts and sync (one-time, ~5 minutes)
+## Turn on accounts and sync
 
-1. Create a free project at supabase.com.
-2. **SQL Editor > New query**: paste `supabase/migrations/001_user_state.sql` and run it. It creates the table and the row-level security that limits each account to its own data.
-3. **Authentication > Emails > Templates**: edit **both** the **Magic Link** and the **Confirm signup** templates so the body includes `{{ .Token }}`, since the app signs in with a 6-digit code (brand-new accounts get *Confirm signup*, returning ones get *Magic Link*). For example: `Your Level Up code is {{ .Token }}`.
-4. **Authentication > URL Configuration**: set the Site URL to your app's address (e.g. `https://levelup-app.onrender.com`).
-5. **Project Settings > API**: copy the Project URL and the `anon` public key. Put them in `app/.env.local` (see `.env.example`) for local dev, and in the Render service's environment variables.
+Sign-in options: **Apple**, **Google**, **email and password**, or a **6-digit email code**. Whatever someone signs in with, their data syncs and loads on every device they sign in on.
 
-The anon key is designed to be public. Security comes from the row-level security policies, not from hiding the key.
+### 1. Supabase project
+
+1. Create a project at supabase.com, or add Supabase from Vercel's Storage tab.
+2. **SQL Editor**: run `supabase/migrations/001_user_state.sql`. It creates the table, plus row-level security so each account can only ever read and write its own data. (Run `002_connector.sql` too when you set up the AI coach.)
+3. **Authentication > URL Configuration**:
+   - **Site URL:** your app address, e.g. `https://level-up-updated-look.vercel.app`
+   - **Redirect URLs:** add the same address. Google and Apple sign-in, and password reset links, return there.
+4. **Authentication > Emails > Templates**: put `{{ .Token }}` in **Magic Link** and **Confirm signup** so the email-code option works (e.g. `Your Level Up code is {{ .Token }}`).
+5. **Project Settings > API**: copy the Project URL and the `anon` public key.
+
+### 2. Sign-in providers (Supabase > Authentication > Sign In / Providers)
+
+- **Email:** on by default. Keep "Confirm email" on so new password accounts verify their address.
+- **Google:** in Google Cloud Console, create an OAuth client (type: Web application). Add Supabase's callback URL (shown on the Google provider page) as an authorised redirect URI. Paste the client ID and secret into Supabase. Free.
+- **Apple:** needs an **Apple Developer Program** membership ($99/year). Create a Services ID and a key for "Sign in with Apple", add Supabase's callback URL, then paste the details into Supabase's Apple provider. Until this is done, the Apple button shows a friendly error and the other options keep working.
+
+### 3. Vercel environment variables (Project > Settings > Environment Variables), then redeploy
+
+- `VITE_SUPABASE_URL` = Project URL
+- `VITE_SUPABASE_ANON_KEY` = anon public key (safe to ship; security comes from the row-level security rules)
+- `VITE_CONNECTOR_URL` = your connector address (AI coach; see below)
+
+Never put the `service_role` key in a `VITE_` variable.
+
+## AI coach (users bring their own Claude or ChatGPT)
+
+The Coach tab shows users how to add Level Up to **their own** Claude or ChatGPT, so their subscription pays for the AI. The connector (`server/`) signs them in to their Level Up account and only ever touches that account. To turn it on, deploy `server/` (see `server/README.md`: Render Starter, about $7/month, because it must stay awake), set `APP_ORIGINS` there to your Vercel address, then set `VITE_CONNECTOR_URL` on Vercel and redeploy.
 
 ## Before real users rely on it
 

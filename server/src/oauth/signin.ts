@@ -131,6 +131,25 @@ export function signInRouter({ store, emailAuth, provider, secureCookies, now = 
     send(res, codePage(p.id, email.data))
   })
 
+  router.post('/signin/password', perIp, codeTries, async (req: Request, res: Response) => {
+    const p = await loadBound(req)
+    if (!p) return expired(res)
+    const email = emailField.safeParse(req.body.email)
+    const password = z.string().min(1).max(72).safeParse(req.body.password)
+    const userId = email.success && password.success ? await emailAuth.verifyPassword(email.data, password.data) : null
+    if (!userId) {
+      const attempts = (p.attempts ?? 0) + 1
+      if (attempts >= MAX_CODE_ATTEMPTS) {
+        await store.deletePending(p.id)
+        return send(res, messagePage('Too many attempts', 'Go back to your AI app and connect Level Up again.'), 429)
+      }
+      await store.savePending({ ...p, attempts })
+      return send(res, emailPage(p.id, await appName(p), 'Email or password is incorrect.'), 400)
+    }
+    await store.savePending({ ...p, userId, email: email.data! })
+    send(res, consentPage(p.id, await appName(p), new URL(p.redirectUri).host, email.data!, p.scopes.includes(SCOPES.write)))
+  })
+
   router.post('/signin/code', perIp, codeTries, async (req: Request, res: Response) => {
     const p = await loadBound(req)
     if (!p) return expired(res)

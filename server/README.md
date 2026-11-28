@@ -47,10 +47,10 @@ Prerequisite: the app's Supabase project is set up (see `app/README.md`).
 2. Required: schedule `select public.levelup_cleanup();` daily (Database → Cron) to clear expired sign-ins and tokens, old activity, and unused app registrations.
 3. On Render, sync the Blueprint. It now includes `levelup-connector`. Fill in:
    - `PUBLIC_URL`: the connector's own address, e.g. `https://levelup-connector.onrender.com`
-   - `APP_ORIGINS`: the app's address, e.g. `https://levelup-app.onrender.com`
+   - `APP_ORIGINS`: the app's address, e.g. `https://level-up-updated-look.vercel.app`
    - `SUPABASE_URL`, `SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`: a **secret** (Supabase → Project Settings → API). It goes only here, never in the app.
-4. Set `VITE_CONNECTOR_URL` on the `levelup-app` service to the same connector address and redeploy it. The **AI apps** section then appears in Settings.
+4. Set `VITE_CONNECTOR_URL` on the app (Vercel: Project > Settings > Environment Variables) to the same connector address and redeploy it. The Coach tab then shows users how to connect. The **AI apps** section then appears in Settings.
 
 The connector uses Render's paid Starter instance (about $7 a month), because chat apps time out when calling a server that's asleep.
 
