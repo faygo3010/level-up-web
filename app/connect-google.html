@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Connecting · Level Up</title>
+  </head>
+  <body>
+    <p id="msg">Connecting your AI app…</p>
+    <script>
+      // Google sign-in for the AI connector returns here (an address Supabase already trusts),
+      // then goes straight on to the connector, which finishes the sign-in. Only ever forwards to
+      // the connector this app was built with, so it can't be used to send codes elsewhere.
+      ;(function () {
+        var base = '%VITE_CONNECTOR_URL%'
+        if (!/^https:\/\/[^/]+$/.test(base.replace(/\/$/, ''))) {
+          document.getElementById('msg').textContent = 'The AI connector is not set up on this copy of Level Up.'
+          return
+        }
+        location.replace(base.replace(/\/$/, '') + '/signin/google/callback' + location.search)
+      })()
+    </script>
+  </body>
+</html>

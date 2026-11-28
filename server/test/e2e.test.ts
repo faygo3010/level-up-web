@@ -410,7 +410,8 @@ describe('Google sign-in on the connect page', () => {
     const res = await fetch(`${base}/signin/google`, form({ req }, cookie))
     expect(res.status).toBe(303)
     const to = new URL(res.headers.get('location')!)
-    expect(to.searchParams.get('redirect_to')).toBe('http://127.0.0.1/signin/google/callback')
+    // Returns via the app's hand-off page (an address Supabase already trusts).
+    expect(to.searchParams.get('redirect_to')).toBe('https://app.example/connect-google.html')
     const reqCookie = res.headers.get('set-cookie')!.split(';')[0]!
     expect(reqCookie).toBe(`lu_req=${req}`)
     return { clientId, verifier, req, cookies: `${cookie}; ${reqCookie}`, bindCookie: cookie }

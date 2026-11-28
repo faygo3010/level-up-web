@@ -4,6 +4,12 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: './',
+  build: {
+    rollupOptions: {
+      // connect-google.html: where Google sign-in for the AI connector lands before going on to the connector.
+      input: { main: 'index.html', connectGoogle: 'connect-google.html' },
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',

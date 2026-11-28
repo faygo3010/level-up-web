@@ -17,6 +17,8 @@ const env = z
     TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(1),
     /** Offer emailed sign-in codes. Only turn on once the Supabase email templates include {{ .Token }}. */
     EMAIL_CODE_SIGNIN: z.enum(['true', 'false']).default('false'),
+    /** Override where Google sign-in returns (default: the app's /connect-google.html page). */
+    GOOGLE_RETURN_URL: z.string().url().optional(),
   })
   .parse(process.env)
 
@@ -38,6 +40,7 @@ const app = createApp({
   stores: stores(),
   trustProxy: env.TRUST_PROXY,
   emailCodes: env.EMAIL_CODE_SIGNIN === 'true',
+  ...(env.GOOGLE_RETURN_URL && { googleReturnUrl: env.GOOGLE_RETURN_URL }),
 })
 
 app.listen(env.PORT, () => {

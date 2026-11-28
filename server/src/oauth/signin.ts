@@ -10,7 +10,7 @@ const MAX_CODE_ATTEMPTS = 5
 const COOKIE = 'lu_signin'
 /** Which sign-in a Google callback belongs to (Google can't carry it through for us). */
 const REQ_COOKIE = 'lu_req'
-const GOOGLE_CALLBACK = '/signin/google/callback'
+export const GOOGLE_CALLBACK = '/signin/google/callback'
 
 const reqId = z.string().min(20).max(100)
 const emailField = z.string().trim().toLowerCase().email().max(254)
@@ -22,8 +22,12 @@ interface Deps {
   readonly provider: LevelUpOAuthProvider
   /** Send the binding cookie with the Secure flag (true whenever served over https). */
   readonly secureCookies: boolean
-  /** This server's public base URL, for the Google callback. */
-  readonly publicUrl: string
+  /**
+   * Where Google sign-in returns before reaching GOOGLE_CALLBACK here. The Level Up
+   * app's connect-google.html page forwards to us, which means Supabase only has to
+   * trust the app's address. Defaults to this server's own callback.
+   */
+  readonly googleReturnUrl: string
   /** Offer emailed sign-in codes. Off unless the email template includes the code. */
   readonly emailCodes?: boolean
   readonly now?: () => number
@@ -88,7 +92,7 @@ function perEmail(limit: number): Partial<Options> {
  * the sign-in link (a cookie bound to the pending sign-in), so someone who
  * started a sign-in and sent the link to a victim can never complete it.
  */
-export function signInRouter({ store, emailAuth, provider, secureCookies, publicUrl, emailCodes = false, now = Date.now }: Deps): Router {
+export function signInRouter({ store, emailAuth, provider, secureCookies, googleReturnUrl, emailCodes = false, now = Date.now }: Deps): Router {
   const emailPage = (req: string, appName: string, error?: string) => renderEmailPage(req, appName, error, { google: true, emailCodes })
   const cookieOptions = { httpOnly: true, secure: secureCookies, sameSite: 'lax' as const, path: '/signin', maxAge: 15 * 60_000 }
   const router = express.Router()
@@ -137,7 +141,7 @@ export function signInRouter({ store, emailAuth, provider, secureCookies, public
     const p = await loadBound(req)
     if (!p) return expired(res)
     try {
-      const { url, state } = await emailAuth.startGoogle(new URL(GOOGLE_CALLBACK, publicUrl).href)
+      const { url, state } = await emailAuth.startGoogle(googleReturnUrl)
       await store.savePending({ ...p, google: state })
       res.cookie(REQ_COOKIE, p.id, cookieOptions)
       secureHeaders(res)

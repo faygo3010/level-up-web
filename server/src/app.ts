@@ -6,7 +6,7 @@ import rateLimit from 'express-rate-limit'
 import { appApiRouter } from './api'
 import { buildMcpServer, callerFrom } from './mcp'
 import { ALL_SCOPES, LevelUpOAuthProvider } from './oauth/provider'
-import { signInRouter } from './oauth/signin'
+import { GOOGLE_CALLBACK, signInRouter } from './oauth/signin'
 import type { Stores } from './stores/types'
 
 export interface AppOptions {
@@ -23,12 +23,14 @@ export interface AppOptions {
   readonly trustProxy?: number
   /** Offer emailed sign-in codes on the sign-in page (default on; production turns it on with EMAIL_CODE_SIGNIN). */
   readonly emailCodes?: boolean
+  /** Where Google sign-in returns. Default: the first app origin's /connect-google.html, else this server. */
+  readonly googleReturnUrl?: string
 }
 
 const jsonRpcError = (res: Response, status: number, message: string) =>
   res.status(status).json({ jsonrpc: '2.0', error: { code: -32000, message }, id: null })
 
-export function createApp({ publicUrl, appOrigins, stores, now, trustProxy = 1, emailCodes = true }: AppOptions): Express {
+export function createApp({ publicUrl, appOrigins, stores, now, trustProxy = 1, emailCodes = true, googleReturnUrl }: AppOptions): Express {
   const base = new URL(publicUrl)
   const mcpUrl = new URL('/mcp', base)
   const app = express()
@@ -53,7 +55,7 @@ export function createApp({ publicUrl, appOrigins, stores, now, trustProxy = 1, 
     }),
   )
   app.use(
-    signInRouter({ store: stores.oauth, emailAuth: stores.emailAuth, provider, secureCookies: base.protocol === 'https:', publicUrl: base.href, emailCodes, ...(now && { now }) }),
+    signInRouter({ store: stores.oauth, emailAuth: stores.emailAuth, provider, secureCookies: base.protocol === 'https:', googleReturnUrl: googleReturnUrl ?? (appOrigins[0] ? new URL('/connect-google.html', appOrigins[0]).href : new URL(GOOGLE_CALLBACK, base).href), emailCodes, ...(now && { now }) }),
   )
   app.use('/api', appApiRouter(stores, appOrigins))
 

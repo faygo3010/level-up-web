@@ -1,6 +1,6 @@
 // Network-first service worker: always try fresh, fall back to cache offline.
 // The cache is bounded so old hashed build files don't pile up forever.
-const CACHE = 'levelup-v2'
+const CACHE = 'levelup-v3'
 const MAX_ENTRIES = 60
 
 self.addEventListener('install', () => self.skipWaiting())
@@ -20,7 +20,10 @@ async function trim(cache) {
 
 self.addEventListener('fetch', (event) => {
   const { request } = event
-  if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return
+  const url = new URL(request.url)
+  if (request.method !== 'GET' || url.origin !== self.location.origin) return
+  // Never cache sign-in hand-offs: their URLs carry one-time codes.
+  if (url.pathname.endsWith('/connect-google.html')) return
   event.respondWith(
     fetch(request)
       .then((res) => {
