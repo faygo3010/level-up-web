@@ -15,7 +15,7 @@ form{display:flex;flex-direction:column;gap:12px}label{display:flex;flex-directi
 input{font:inherit;color:inherit;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--bg)}
 button{font:inherit;font-weight:700;padding:12px;border-radius:12px;border:1px solid var(--fg);background:var(--fg);color:var(--bg);cursor:pointer}
 button.secondary{background:none;color:var(--fg);border-color:var(--line)}
-.row{display:flex;gap:8px}.row button{flex:1}.error{color:var(--bad)}
+.or{text-align:center;font-size:13px}.row{display:flex;gap:8px}.row button{flex:1}.error{color:var(--bad)}
 ul{margin:0;padding-left:18px;color:var(--muted)}code{font-size:13px;word-break:break-all}
 `
 
@@ -28,20 +28,35 @@ function page(title: string, body: string): string {
 const hidden = (name: string, value: string) => `<input type="hidden" name="${esc(name)}" value="${esc(value)}">`
 const errorLine = (error?: string) => (error ? `<p class="error" role="alert">${esc(error)}</p>` : '')
 
-export function emailPage(req: string, appName: string, error?: string): string {
+export interface SignInOptions {
+  /** Offer "Continue with Google". */
+  readonly google: boolean
+  /** Offer emailed sign-in codes (needs an email template that includes the code). */
+  readonly emailCodes: boolean
+}
+
+export function emailPage(req: string, appName: string, error?: string, options: SignInOptions = { google: true, emailCodes: true }): string {
+  const google = options.google
+    ? `<form method="post" action="/signin/google">${hidden('req', req)}<button class="secondary" type="submit">Continue with Google</button></form>
+<p class="or">or use your email and password</p>`
+    : ''
+  const codes = options.emailCodes
+    ? `<p>No password? Get a code instead:</p>
+<form method="post" action="/signin/email">${hidden('req', req)}
+<label>Email<input type="email" name="email" autocomplete="email" required maxlength="254"></label>
+<button class="secondary" type="submit">Email me a code</button></form>`
+    : `<p>Signed up with Google and want to use a password? Set one in the Level Up app under Settings.</p>`
   return page(
     'Sign in',
     `<h1>Connect ${esc(appName)}</h1>
 <p>Sign in with your Level Up account.</p>
 ${errorLine(error)}
+${google}
 <form method="post" action="/signin/password">${hidden('req', req)}
-<label>Email<input type="email" name="email" autocomplete="email" required autofocus maxlength="254"></label>
+<label>Email<input type="email" name="email" autocomplete="email" required maxlength="254"></label>
 <label>Password<input type="password" name="password" autocomplete="current-password" required maxlength="72"></label>
 <button type="submit">Sign in</button></form>
-<p>Signed up with Google, Apple or no password? Get a code instead:</p>
-<form method="post" action="/signin/email">${hidden('req', req)}
-<label>Email<input type="email" name="email" autocomplete="email" required maxlength="254"></label>
-<button class="secondary" type="submit">Email me a code</button></form>`,
+${codes}`,
   )
 }
 

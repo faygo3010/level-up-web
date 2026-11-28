@@ -41,6 +41,8 @@ const renderAccount = (client: SupabaseClient) =>
 const type = (label: RegExp, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } })
 const click = async (name: string) => act(async () => fireEvent.click(screen.getByRole('button', { name })))
 
+afterEach(() => vi.unstubAllEnvs())
+
 describe('sign-in options', () => {
   afterEach(() => vi.unstubAllEnvs())
 
@@ -104,7 +106,14 @@ describe('sign-in options', () => {
     expect(screen.queryByRole('heading', { name: 'Choose a new password' })).not.toBeInTheDocument()
   })
 
-  it('keeps the email-code option', async () => {
+  it('hides email codes until the email template supports them', () => {
+    renderAccount(fakeAuth().client)
+    expect(screen.queryByRole('radio', { name: 'Email code' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Sign in' })).toBeInTheDocument()
+  })
+
+  it('offers email codes once switched on', async () => {
+    vi.stubEnv('VITE_EMAIL_CODE_SIGNIN', 'true')
     const { auth, client } = fakeAuth()
     renderAccount(client)
     fireEvent.click(screen.getByRole('radio', { name: 'Email code' }))

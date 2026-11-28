@@ -21,12 +21,14 @@ export interface AppOptions {
    * find the real client IP for rate limits. 0 when exposed directly.
    */
   readonly trustProxy?: number
+  /** Offer emailed sign-in codes on the sign-in page (default on; production turns it on with EMAIL_CODE_SIGNIN). */
+  readonly emailCodes?: boolean
 }
 
 const jsonRpcError = (res: Response, status: number, message: string) =>
   res.status(status).json({ jsonrpc: '2.0', error: { code: -32000, message }, id: null })
 
-export function createApp({ publicUrl, appOrigins, stores, now, trustProxy = 1 }: AppOptions): Express {
+export function createApp({ publicUrl, appOrigins, stores, now, trustProxy = 1, emailCodes = true }: AppOptions): Express {
   const base = new URL(publicUrl)
   const mcpUrl = new URL('/mcp', base)
   const app = express()
@@ -51,7 +53,7 @@ export function createApp({ publicUrl, appOrigins, stores, now, trustProxy = 1 }
     }),
   )
   app.use(
-    signInRouter({ store: stores.oauth, emailAuth: stores.emailAuth, provider, secureCookies: base.protocol === 'https:', ...(now && { now }) }),
+    signInRouter({ store: stores.oauth, emailAuth: stores.emailAuth, provider, secureCookies: base.protocol === 'https:', publicUrl: base.href, emailCodes, ...(now && { now }) }),
   )
   app.use('/api', appApiRouter(stores, appOrigins))
 

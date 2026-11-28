@@ -400,3 +400,57 @@ describe('password sign-in on the connect page', () => {
     expect((await fetch(`${base}/signin/password`, form({ req, email: EMAIL, password: 'correct-horse' }))).status).toBe(400)
   })
 })
+
+describe('Google sign-in on the connect page', () => {
+  const googleStart = async () => {
+    const clientId = await register()
+    const { verifier, challenge } = pkce()
+    const req = await startAuthorize(clientId, challenge)
+    const cookie = await openSignIn(req)
+    const res = await fetch(`${base}/signin/google`, form({ req }, cookie))
+    expect(res.status).toBe(303)
+    const to = new URL(res.headers.get('location')!)
+    expect(to.searchParams.get('redirect_to')).toBe('http://127.0.0.1/signin/google/callback')
+    const reqCookie = res.headers.get('set-cookie')!.split(';')[0]!
+    expect(reqCookie).toBe(`lu_req=${req}`)
+    return { clientId, verifier, req, cookies: `${cookie}; ${reqCookie}`, bindCookie: cookie }
+  }
+
+  it('offers Google, and connects once Google sends the user back', async () => {
+    const { clientId, verifier, req, cookies } = await googleStart()
+    const back = await fetch(`${base}/signin/google/callback?code=google-ok`, { headers: { cookie: cookies } })
+    expect(back.status).toBe(200)
+    const page = await back.text()
+    expect(page).toContain('Allow Test Chat to use your Level Up?')
+    expect(page).toContain('google-user@example.com')
+    const done = await fetch(`${base}/signin/consent`, form({ req, decision: 'allow' }, cookies))
+    const code = new URL(done.headers.get('location')!).searchParams.get('code')!
+    expect((await token({ grant_type: 'authorization_code', code, code_verifier: verifier, redirect_uri: REDIRECT, client_id: clientId })).status).toBe(200)
+  })
+
+  it('rejects a callback from another browser, a bad code, or a reused one', async () => {
+    const { req, cookies, bindCookie } = await googleStart()
+    // Another browser: has the request id but not the binding cookie.
+    expect((await fetch(`${base}/signin/google/callback?code=google-ok`, { headers: { cookie: `lu_req=${req}` } })).status).toBe(400)
+    expect((await fetch(`${base}/signin/google/callback?code=google-ok`, { headers: { cookie: bindCookie } })).status).toBe(400)
+    const bad = await fetch(`${base}/signin/google/callback?code=forged`, { headers: { cookie: cookies } })
+    expect(bad.status).toBe(400)
+    expect(await bad.text()).toContain('Google sign-in didn&#39;t finish')
+    // The PKCE state is spent after one try.
+    expect((await fetch(`${base}/signin/google/callback?code=google-ok`, { headers: { cookie: cookies } })).status).toBe(400)
+  })
+
+  it('hides email codes when they are switched off', async () => {
+    server.close()
+    const app = createApp({ publicUrl: 'http://127.0.0.1', appOrigins: [], stores, trustProxy: 0, emailCodes: false })
+    server = app.listen(0)
+    await new Promise((r) => server.once('listening', r))
+    base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+    const req = await startAuthorize(await register(), pkce().challenge)
+    const cookie = await openSignIn(req)
+    const page = await (await fetch(`${base}/signin?req=${req}`, { headers: { cookie } })).text()
+    expect(page).toContain('Continue with Google')
+    expect(page).not.toContain('Email me a code')
+    expect((await fetch(`${base}/signin/email`, form({ req, email: EMAIL }, cookie))).status).toBe(404)
+  })
+})

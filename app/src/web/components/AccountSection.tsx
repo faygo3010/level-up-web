@@ -107,6 +107,8 @@ function PasswordSignIn() {
 
 /** Apple sign-in needs a paid Apple Developer account, so it's off until VITE_APPLE_SIGNIN=true. */
 const appleEnabled = () => import.meta.env.VITE_APPLE_SIGNIN === 'true'
+/** Emailed codes need a Supabase email template with {{ .Token }} (custom SMTP), so they're off until VITE_EMAIL_CODE_SIGNIN=true. */
+const emailCodesEnabled = () => import.meta.env.VITE_EMAIL_CODE_SIGNIN === 'true'
 
 export function SignIn({ intro = true }: { intro?: boolean }) {
   const sync = useSync()
@@ -132,11 +134,13 @@ export function SignIn({ intro = true }: { intro?: boolean }) {
       </VStack>
       {error && <Banner status="error" title={error} />}
       <Divider />
-      <SegmentedControl label="Sign in with email" value={method} onChange={(v) => setMethod(v as 'password' | 'code')} layout="fill" size="sm">
-        <SegmentedControlItem value="password" label="Password" />
-        <SegmentedControlItem value="code" label="Email code" />
-      </SegmentedControl>
-      {method === 'password' ? <PasswordSignIn /> : <CodeSignIn />}
+      {emailCodesEnabled() && (
+        <SegmentedControl label="Sign in with email" value={method} onChange={(v) => setMethod(v as 'password' | 'code')} layout="fill" size="sm">
+          <SegmentedControlItem value="password" label="Password" />
+          <SegmentedControlItem value="code" label="Email code" />
+        </SegmentedControl>
+      )}
+      {method === 'code' && emailCodesEnabled() ? <CodeSignIn /> : <PasswordSignIn />}
     </VStack>
   )
 }

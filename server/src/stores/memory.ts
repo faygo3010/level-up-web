@@ -129,6 +129,16 @@ export class MemoryEmailAuth implements EmailAuth {
   async verifyPassword(email: string, password: string) {
     return this.passwords.get(email) === password ? `user:${email}` : null
   }
+  /** Fake Google: "signs in" as this address. */
+  googleEmail = 'google-user@example.com'
+  async startGoogle(redirectTo: string) {
+    const url = new URL('https://accounts.example.test/authorize')
+    url.searchParams.set('redirect_to', redirectTo)
+    return { url: url.href, state: { verifier: 'pkce-verifier' } }
+  }
+  async finishGoogle(code: string, state: Readonly<Record<string, string>>) {
+    return code === 'google-ok' && state.verifier === 'pkce-verifier' ? { userId: `user:${this.googleEmail}`, email: this.googleEmail } : null
+  }
 }
 
 export class MemorySessions implements SessionVerifier {

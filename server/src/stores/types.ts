@@ -18,6 +18,8 @@ export interface PendingAuthorization {
   readonly attempts?: number
   /** Hash of the cookie of the browser that opened this sign-in; all later steps must come from it. */
   readonly browserHash?: string
+  /** PKCE state for an in-progress Google sign-in (the verifier, never sent to the browser). */
+  readonly google?: Readonly<Record<string, string>>
 }
 
 export interface AuthorizationCode {
@@ -99,6 +101,10 @@ export interface EmailAuth {
   verifyCode(email: string, code: string): Promise<string | null>
   /** Returns the user id, or null if the email/password pair is wrong. */
   verifyPassword(email: string, password: string): Promise<string | null>
+  /** Start Google sign-in: where to send the browser, plus PKCE state to keep server-side. */
+  startGoogle(redirectTo: string): Promise<{ url: string; state: Record<string, string> }>
+  /** Finish Google sign-in with the code Google sent back. Null if it's invalid. */
+  finishGoogle(code: string, state: Readonly<Record<string, string>>): Promise<{ userId: string; email: string } | null>
 }
 
 /** Verifies a Level Up app session (for the app's "Connected AI apps" screen). */

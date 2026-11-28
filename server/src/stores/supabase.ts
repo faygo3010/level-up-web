@@ -209,6 +209,25 @@ function activityStore(db: SupabaseClient): Stores['activity'] {
 export function supabaseStores(url: string, serviceRoleKey: string, anonKey: string): Stores {
   const admin = createClient(url, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } })
   const fresh = () => createClient(url, anonKey, { auth: { persistSession: false, autoRefreshToken: false } })
+  /** A one-off client whose auth storage is the given object, so the PKCE verifier can be saved and restored. */
+  const pkceClient = (mem: Record<string, string>) =>
+    createClient(url, anonKey, {
+      auth: {
+        flowType: 'pkce',
+        persistSession: true,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+        storage: {
+          getItem: (k: string) => mem[k] ?? null,
+          setItem: (k: string, v: string) => {
+            mem[k] = v
+          },
+          removeItem: (k: string) => {
+            delete mem[k]
+          },
+        },
+      },
+    })
   return {
     oauth: oauthStore(admin),
     activity: activityStore(admin),
@@ -227,6 +246,18 @@ export function supabaseStores(url: string, serviceRoleKey: string, anonKey: str
       async verifyPassword(email, password) {
         const { data, error } = await fresh().auth.signInWithPassword({ email, password })
         return error || !data.user ? null : data.user.id
+      },
+      // Google via Supabase with PKCE. The verifier lives in the pending sign-in on this server,
+      // so the code Google returns is useless to anyone else.
+      async startGoogle(redirectTo) {
+        const state: Record<string, string> = {}
+        const { data, error } = await pkceClient(state).auth.signInWithOAuth({ provider: 'google', options: { redirectTo, skipBrowserRedirect: true } })
+        if (error || !data.url) throw new Error(error?.message ?? 'No sign-in URL')
+        return { url: data.url, state }
+      },
+      async finishGoogle(code, saved) {
+        const { data, error } = await pkceClient({ ...saved }).auth.exchangeCodeForSession(code)
+        return error || !data.user ? null : { userId: data.user.id, email: data.user.email ?? '' }
       },
     },
     sessions: {

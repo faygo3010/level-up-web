@@ -15,6 +15,8 @@ const env = z
     USE_MEMORY_STORES: z.enum(['true', 'false']).default('false'),
     /** Reverse-proxy hops in front of the server (Render: 1; directly exposed: 0). */
     TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(1),
+    /** Offer emailed sign-in codes. Only turn on once the Supabase email templates include {{ .Token }}. */
+    EMAIL_CODE_SIGNIN: z.enum(['true', 'false']).default('false'),
   })
   .parse(process.env)
 
@@ -35,6 +37,7 @@ const app = createApp({
   appOrigins: env.APP_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean),
   stores: stores(),
   trustProxy: env.TRUST_PROXY,
+  emailCodes: env.EMAIL_CODE_SIGNIN === 'true',
 })
 
 app.listen(env.PORT, () => {
