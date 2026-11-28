@@ -96,6 +96,29 @@ describe('SyncProvider', () => {
     await waitFor(() => expect(screen.getByTestId('currency').textContent).toBe('$'))
   })
 
+  it('keeps an AI app\'s change when this device edits something else, and opening the app overwrites nothing', async () => {
+    const base = starterState('2026-11-24')
+    const start = { ...base, settings: { ...base.settings, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone } }
+    const { db, client } = fakeSupabase({ state: start, version: 'v1' })
+    // A device that has synced before: it knows the version and copy it last agreed on.
+    localStorage.setItem('levelup:sync', JSON.stringify({ baseVersion: 'v1', dirty: false }))
+    localStorage.setItem('levelup:base', JSON.stringify(start))
+    localStorage.setItem('levelup:owner', 'user-1')
+    renderWith(client, start)
+    await waitFor(() => expect(screen.getByTestId('status').textContent).toBe('idle'))
+    await act(async () => new Promise((r) => setTimeout(r, 2500)))
+    expect(db.writes).toBe(0) // just opening the app pushes nothing
+
+    // An AI app renames a routine through the connector.
+    const renamed = start.routines.map((r) => (r.id === 'fit-steps' ? { ...r, title: '4k steps' } : r))
+    db.row = { state: { ...start, routines: renamed }, version: 'v2' }
+
+    // Meanwhile this device changes a setting; its sync must keep both changes.
+    await act(async () => screen.getByText('edit').click())
+    await waitFor(() => expect(db.row?.state.settings.currency).toBe('€'), { timeout: 4000 })
+    expect(db.row?.state.routines.find((r) => r.id === 'fit-steps')?.title).toBe('4k steps')
+  })
+
   it('pushes local edits after a short delay', async () => {
     const { db, client } = fakeSupabase(null)
     renderWith(client, starterState('2026-11-24'))

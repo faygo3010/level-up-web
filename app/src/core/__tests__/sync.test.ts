@@ -99,4 +99,14 @@ describe('syncOnce', () => {
     expect(r.meta.dirty).toBe(true)
     expect(r.error).toMatch(/try again/i)
   })
+
+  it('keeps edits made elsewhere to things this device did not change', async () => {
+    const base = stateWith({ routines: [routine({ id: 'steps', title: '10k steps' }), routine({ id: 'train' })] })
+    const fromAi = stateWith({ routines: [routine({ id: 'steps', title: '4k steps' }), routine({ id: 'train' })] })
+    const device = stateWith({ routines: [routine({ id: 'steps', title: '10k steps' }), routine({ id: 'train', title: 'Lift' })] })
+    const repo = new FakeRepo({ state: fromAi, version: 'v9' })
+    const r = await syncOnce(device, { baseVersion: 'v8', dirty: true }, repo, base)
+    expect(r.state.routines.map((x) => x.title)).toEqual(['4k steps', 'Lift'])
+    expect(repo.doc?.state).toEqual(r.state)
+  })
 })

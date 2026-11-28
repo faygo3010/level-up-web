@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { z } from 'zod'
 import { emptyState } from '../../core/defaults'
 import { mergeStates } from '../../core/merge'
+import { appStateSchema } from '../../core/schema'
 import { NEVER_SYNCED, syncOnce, type RemoteRepo, type SyncMeta } from '../../core/sync'
 import type { AppState } from '../../core/types'
 import { useStore } from '../store'
@@ -10,6 +11,8 @@ import { getSupabase, supabaseRepo, SyncError } from './supabaseRepo'
 
 const META_KEY = 'levelup:sync'
 const OWNER_KEY = 'levelup:owner'
+/** The copy this device last agreed with the server, to tell which side changed what. */
+const BASE_KEY = 'levelup:base'
 const PUSH_DELAY_MS = 2000
 /** Pull often while the app is open so changes made from an AI chat show up quickly. */
 const POLL_MS = 60 * 1000
@@ -72,6 +75,26 @@ function writeMeta(meta: SyncMeta) {
   }
 }
 
+function readBase(): AppState | null {
+  try {
+    const raw = localStorage.getItem(BASE_KEY)
+    if (!raw) return null
+    const parsed = appStateSchema.safeParse(JSON.parse(raw))
+    return parsed.success ? (parsed.data as AppState) : null
+  } catch {
+    return null
+  }
+}
+
+function writeBase(state: AppState | null) {
+  try {
+    if (state) localStorage.setItem(BASE_KEY, JSON.stringify(state))
+    else localStorage.removeItem(BASE_KEY)
+  } catch {
+    // Storage full or blocked: sync still works, just with less precise merges.
+  }
+}
+
 function readOwner(): string | null {
   try {
     return localStorage.getItem(OWNER_KEY)
@@ -125,6 +148,7 @@ export function SyncProvider({ children, supabase = getSupabase() }: { children:
   const [lastSynced, setLastSynced] = useState<number | null>(null)
 
   const meta = useRef<SyncMeta>(readMeta())
+  const base = useRef<AppState | null>(readBase())
   const latest = useRef<AppState>(state)
   /** The state most recently written by sync itself, so we don't mark it as a local edit. */
   const fromSync = useRef<AppState | null>(null)
@@ -138,17 +162,25 @@ export function SyncProvider({ children, supabase = getSupabase() }: { children:
       // A different account signed in on this device: never mix its data with the
       // previous person's. Start from the account's copy instead.
       const switchedAccount = readOwner() !== null && readOwner() !== userId
-      if (switchedAccount) meta.current = NEVER_SYNCED
+      if (switchedAccount) {
+        meta.current = NEVER_SYNCED
+        base.current = null
+      }
       const sent = switchedAccount ? { ...emptyState(), startedOn: today } : latest.current
-      const result = await syncOnce(sent, meta.current, repo)
+      const result = await syncOnce(sent, meta.current, repo, base.current)
       writeOwner(userId)
+      if (!result.error) {
+        base.current = result.state
+        writeBase(result.state)
+      }
 
       // If the user edited while we were syncing, fold those edits in and push again.
       const editedMeanwhile = !switchedAccount && latest.current !== sent
       meta.current = { ...result.meta, dirty: result.meta.dirty || editedMeanwhile }
       writeMeta(meta.current)
       if (result.changed || switchedAccount) {
-        const next = editedMeanwhile ? mergeStates(latest.current, result.state) : result.state
+        // Edits made during the sync win only for the items they actually touched.
+        const next = editedMeanwhile ? mergeStates(latest.current, result.state, sent) : result.state
         fromSync.current = editedMeanwhile ? null : next
         dispatch({ type: 'replace', state: next })
       }
@@ -163,8 +195,14 @@ export function SyncProvider({ children, supabase = getSupabase() }: { children:
   }, [repo, dispatch, userId, today])
 
   // Track local edits and push them shortly after they happen.
+  const seen = useRef<AppState | null>(null)
   useEffect(() => {
     latest.current = state
+    // Only a real change of data is an edit: not opening the app, and not this
+    // effect re-running because sign-in finished loading.
+    const previous = seen.current
+    seen.current = state
+    if (previous === null || previous === state) return
     if (state === fromSync.current) return
     if (!meta.current.dirty) {
       meta.current = { ...meta.current, dirty: true }
@@ -257,6 +295,8 @@ export function SyncProvider({ children, supabase = getSupabase() }: { children:
         await supabase?.auth.signOut()
         meta.current = { ...NEVER_SYNCED, dirty: true }
         writeMeta(meta.current)
+        base.current = null
+        writeBase(null)
         setLastSynced(null)
         setError(null)
       },

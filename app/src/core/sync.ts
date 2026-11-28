@@ -42,20 +42,26 @@ export const NEVER_SYNCED: SyncMeta = { baseVersion: null, dirty: false }
 const MAX_ATTEMPTS = 3
 
 /** Decide what this device should hold given the server copy. */
-function reconcile(local: AppState, meta: SyncMeta, remote: RemoteDoc | null): { state: AppState; mustPush: boolean } {
+function reconcile(local: AppState, meta: SyncMeta, remote: RemoteDoc | null, base?: AppState): { state: AppState; mustPush: boolean } {
   if (remote === null) return { state: local, mustPush: true }
   if (remote.version === meta.baseVersion) return { state: local, mustPush: meta.dirty }
   // First sign-in on this device: keep anything local, but the account wins conflicts.
   if (meta.baseVersion === null) return { state: mergeStates(remote.state, local), mustPush: true }
   if (!meta.dirty) return { state: remote.state, mustPush: false }
-  return { state: mergeStates(local, remote.state), mustPush: true }
+  // Both changed: each item takes whichever side changed it since the last sync (base).
+  return { state: mergeStates(local, remote.state, base), mustPush: true }
 }
 
-export async function syncOnce(local: AppState, meta: SyncMeta, repo: RemoteRepo): Promise<SyncResult> {
+/**
+ * One round of sync. `base` is the copy this device last agreed with the server
+ * (the state returned by the previous error-free sync), used to tell which side
+ * changed each item. After an error-free sync the returned state is the new base.
+ */
+export async function syncOnce(local: AppState, meta: SyncMeta, repo: RemoteRepo, base?: AppState | null): Promise<SyncResult> {
   let current = local
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const remote = await repo.pull()
-    const { state, mustPush } = reconcile(current, meta, remote)
+    const { state, mustPush } = reconcile(current, meta, remote, base ?? undefined)
     current = state
 
     if (!mustPush) {

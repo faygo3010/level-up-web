@@ -45,4 +45,42 @@ describe('mergeStates', () => {
     const both = mergeStates(stateWith({ settings: { ...base, name: 'Sam', onboardedAt: 9 } }), stateWith({ settings: { ...base, name: 'Jo', onboardedAt: 5 } }))
     expect(both.settings).toMatchObject({ name: 'Sam', onboardedAt: 5 })
   })
+
+  describe('with the last synced copy (three-way)', () => {
+    const base = stateWith({ routines: [routine({ id: 'steps', title: '10k steps' }), routine({ id: 'train', title: 'Train' })] })
+
+    it('keeps an edit made elsewhere when this device did not touch that item', () => {
+      // An AI app renamed "steps"; this device only renamed "train".
+      const remote = stateWith({ routines: [routine({ id: 'steps', title: '4k steps' }), routine({ id: 'train', title: 'Train' })] })
+      const local = stateWith({ routines: [routine({ id: 'steps', title: '10k steps' }), routine({ id: 'train', title: 'Lift' })] })
+      const merged = mergeStates(local, remote, base)
+      expect(merged.routines.map((r) => r.title)).toEqual(['4k steps', 'Lift'])
+    })
+
+    it('lets this device win only when both changed the same item', () => {
+      const remote = stateWith({ routines: [routine({ id: 'steps', title: '4k steps' })] })
+      const local = stateWith({ routines: [routine({ id: 'steps', title: '12k steps' })] })
+      expect(mergeStates(local, remote, base).routines[0]!.title).toBe('12k steps')
+    })
+
+    it('treats key order as no change', () => {
+      const reordered = { ...base, routines: base.routines.map((r) => JSON.parse(JSON.stringify(r, Object.keys(r).reverse()))) }
+      const remote = stateWith({ routines: [routine({ id: 'steps', title: '4k steps' }), routine({ id: 'train', title: 'Train' })] })
+      expect(mergeStates(reordered, remote, base).routines[0]!.title).toBe('4k steps')
+    })
+
+    it('takes settings and rule checks changed elsewhere', () => {
+      const b = stateWith({ ruleChecks: { d1: { x: true } } })
+      const remote = stateWith({ ruleChecks: { d1: { x: false } }, settings: { ...b.settings, currency: '$' } })
+      const merged = mergeStates(b, remote, b)
+      expect(merged.ruleChecks).toEqual({ d1: { x: false } })
+      expect(merged.settings.currency).toBe('$')
+    })
+
+    it('takes journal edits made elsewhere', () => {
+      const n = note('n1')
+      const merged = mergeStates(stateWith({ logs: [n] }), stateWith({ logs: [{ ...n, text: 'edited by AI' }] }), stateWith({ logs: [n] }))
+      expect(merged.logs[0]!.text).toBe('edited by AI')
+    })
+  })
 })
