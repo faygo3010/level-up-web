@@ -37,4 +37,12 @@ describe('mergeStates', () => {
     expect(merged.startedOn).toBe('2026-10-01')
     expect(mergeStates(stateWith(), stateWith()).startedOn).toBeUndefined()
   })
+
+  it('never loses your name or that setup is done', () => {
+    const base = { currency: '£', streakThreshold: 0.8, weekStartsOn: 1 as const }
+    const merged = mergeStates(stateWith({ settings: base }), stateWith({ settings: { ...base, name: 'Jo', onboardedAt: 5 } }))
+    expect(merged.settings).toMatchObject({ name: 'Jo', onboardedAt: 5 })
+    const both = mergeStates(stateWith({ settings: { ...base, name: 'Sam', onboardedAt: 9 } }), stateWith({ settings: { ...base, name: 'Jo', onboardedAt: 5 } }))
+    expect(both.settings).toMatchObject({ name: 'Sam', onboardedAt: 5 })
+  })
 })

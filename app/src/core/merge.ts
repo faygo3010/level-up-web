@@ -34,6 +34,16 @@ function mergeMemories(primary: AppState, secondary: AppState): Pick<AppState, '
   return { memories: unionById(primary.memories, secondary.memories).filter((m) => !gone.has(m.id)), forgottenMemoryIds: forgotten }
 }
 
+/**
+ * The primary side's settings win, but never lose who you are or that setup
+ * is done just because the other copy (or an older app version) lacks them.
+ */
+function mergeSettings(primary: AppState['settings'], secondary: AppState['settings']): AppState['settings'] {
+  const name = primary.name ?? secondary.name
+  const onboardedAt = [primary.onboardedAt, secondary.onboardedAt].filter((x): x is number => x !== undefined).sort((a, b) => a - b)[0]
+  return { ...primary, ...(name !== undefined && { name }), ...(onboardedAt !== undefined && { onboardedAt }) }
+}
+
 function earliest(a?: DateKey, b?: DateKey): DateKey | undefined {
   if (a === undefined) return b
   if (b === undefined) return a
@@ -64,7 +74,7 @@ export function mergeStates(primary: AppState, secondary: AppState): AppState {
     ...mergeMemories(primary, secondary),
     completions,
     ruleChecks: mergeRuleChecks(primary.ruleChecks, secondary.ruleChecks),
-    settings: primary.settings,
+    settings: mergeSettings(primary.settings, secondary.settings),
     tombstones,
     ...(startedOn !== undefined && { startedOn }),
   }

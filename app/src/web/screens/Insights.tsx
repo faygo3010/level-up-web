@@ -15,7 +15,7 @@ import { weekSummary } from '../../core/summary'
 export { weekSummary }
 import { Empty, HeatLegend, PageHeader, Section, Stat, heatTone, money, pct, plural } from '../components/ui'
 import { useAreas, useStore } from '../store'
-import { amountOf, headline } from './Journal'
+import { amountOf, headline } from '../components/logText'
 
 const HEATMAP_DAYS = 35
 

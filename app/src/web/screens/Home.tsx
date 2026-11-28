@@ -15,7 +15,7 @@ import { weekSummary } from '../../core/summary'
 import { describeProgress } from '../components/GoalRow'
 import { AreaTag, Empty, PageHeader, Section, Stat, heatTone, money, pct, plural, statusVariant } from '../components/ui'
 import { useAreas, useStore } from '../store'
-import { amountOf, headline } from './Journal'
+import { amountOf, headline } from '../components/logText'
 
 const go = (hash: string) => () => {
   window.location.hash = hash
@@ -73,7 +73,7 @@ export function Home() {
         <Stat label="Streak" value={`${streak}d`} hint={`days ≥ ${pct(state.settings.streakThreshold)}`} />
         <Stat label="Last 7 days" value={pct(week.adherence)} hint={week.previous !== null ? `week before ${pct(week.previous)}` : 'adherence'} />
         {hasTrading && <Stat label="Trading this week" value={money(week.trades.totalPnl, currency)} hint={plural(week.trades.count, 'trade')} />}
-        <Stat label="Spent this week" value={money(week.spent, currency)} hint={week.budget ? `${pct(week.budget.used)} of ${week.budget.title}` : undefined} />
+        <Stat label="Spent this week" value={money(week.spent, currency)} hint="last 7 days" />
       </Grid>
 
       <Section title="This week" action={<Button size="sm" variant="ghost" label="Open calendar" onClick={go('calendar')} />}>

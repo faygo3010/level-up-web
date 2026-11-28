@@ -170,7 +170,7 @@ export function Onboarding({ onDone }: { onDone?: () => void }) {
                       <NumberInput
                         label={`Target for ${g.title} (${unit})`}
                         value={c.goals[g.id]}
-                        min={0}
+                        min={1}
                         onChange={(v) => set({ goals: { ...c.goals, [g.id]: v } })}
                       />
                     )}

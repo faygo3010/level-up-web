@@ -34,6 +34,8 @@ interface SyncApi {
   updatePassword(password: string): Promise<string | null>
   /** True after the user opened a password-reset link and must choose a new password. */
   readonly recoveringPassword: boolean
+  /** True while the saved sign-in is still being read on startup. */
+  readonly checkingSession: boolean
   signOut(): Promise<void>
   syncNow(): void
   /** Current app session token, for calling the connector's API. */
@@ -87,12 +89,17 @@ function writeOwner(userId: string | null) {
   }
 }
 
-function useSession(supabase: SupabaseClient | null): { session: Session | null; recovering: boolean; endRecovery: () => void } {
+function useSession(supabase: SupabaseClient | null): { session: Session | null; loading: boolean; recovering: boolean; endRecovery: () => void } {
   const [session, setSession] = useState<Session | null>(null)
+  const [loading, setLoading] = useState(supabase !== null)
   const [recovering, setRecovering] = useState(false)
   useEffect(() => {
     if (!supabase) return
-    supabase.auth.getSession().then(({ data }) => setSession(data.session))
+    supabase.auth
+      .getSession()
+      .then(({ data }) => setSession(data.session))
+      .catch(() => {})
+      .finally(() => setLoading(false))
     const { data } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s)
       if (event === 'PASSWORD_RECOVERY') setRecovering(true)
@@ -103,13 +110,13 @@ function useSession(supabase: SupabaseClient | null): { session: Session | null;
     })
     return () => data.subscription.unsubscribe()
   }, [supabase])
-  return { session, recovering, endRecovery: () => setRecovering(false) }
+  return { session, loading, recovering, endRecovery: () => setRecovering(false) }
 }
 
 /** Owns sign-in and keeps the store in sync with the account in the background. */
 export function SyncProvider({ children, supabase = getSupabase() }: { children: ReactNode; supabase?: SupabaseClient | null }) {
   const { state, dispatch, today } = useStore()
-  const { session, recovering, endRecovery } = useSession(supabase)
+  const { session, loading: sessionLoading, recovering, endRecovery } = useSession(supabase)
   const userId = session?.user.id ?? null
   const repo = useMemo<RemoteRepo | null>(() => (supabase && userId ? supabaseRepo(supabase, userId) : null), [supabase, userId])
 
@@ -245,6 +252,7 @@ export function SyncProvider({ children, supabase = getSupabase() }: { children:
         return null
       },
       recoveringPassword: recovering,
+      checkingSession: sessionLoading,
       async signOut() {
         await supabase?.auth.signOut()
         meta.current = { ...NEVER_SYNCED, dirty: true }
@@ -258,7 +266,7 @@ export function SyncProvider({ children, supabase = getSupabase() }: { children:
         return data.session?.access_token ?? null
       },
     }
-  }, [supabase, userId, session, syncing, error, lastSynced, run, recovering, endRecovery])
+  }, [supabase, userId, session, syncing, error, lastSynced, run, recovering, endRecovery, sessionLoading])
 
   return <SyncContext.Provider value={api}>{children}</SyncContext.Provider>
 }

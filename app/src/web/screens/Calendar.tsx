@@ -17,7 +17,7 @@ import { LogForm } from '../components/LogForm'
 import { RuleCheck } from '../components/RuleCheck'
 import { AreaTag, Empty, HeatLegend, PageHeader, Section, heatTone, money, pct, plural } from '../components/ui'
 import { useAreas, useStore } from '../store'
-import { amountOf, details, headline } from './Journal'
+import { amountOf, details, headline } from '../components/logText'
 
 /** What a screen reader hears for one day cell. */
 export function cellLabel(date: DateKey, score: number | null, entries: number, isToday: boolean, isSelected: boolean): string {
