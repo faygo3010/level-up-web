@@ -50,7 +50,7 @@ Prerequisite: the app's Supabase project is set up (see `app/README.md`).
    - `APP_ORIGINS`: the app's address, e.g. `https://level-up-updated-look.vercel.app`
    - `SUPABASE_URL`, `SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`: a **secret** (Supabase → Project Settings → API). It goes only here, never in the app.
-4. Set `VITE_CONNECTOR_URL` on the app (Vercel: Project > Settings > Environment Variables) to the same connector address and redeploy it. The Coach tab then shows users how to connect. The **AI apps** section then appears in Settings.
+4. Set `VITE_CONNECTOR_URL` on the app (Vercel: Project > Settings > Environment Variables) to the same connector address and redeploy it. The Coach tab then shows users how to connect.
 
 The connector uses Render's paid Starter instance (about $7 a month), because chat apps time out when calling a server that's asleep.
 
