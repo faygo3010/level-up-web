@@ -155,3 +155,28 @@ export function ConfirmButton({
     />
   )
 }
+
+export type HeatTone = 'default' | 'gray' | 'orange' | 'yellow' | 'teal' | 'green'
+
+/** Colour for a day's adherence score, shared by the Insights heatmap and the calendar. */
+export function heatTone(score: number | null): HeatTone {
+  if (score === null) return 'default'
+  if (score >= 1) return 'green'
+  if (score >= 0.8) return 'teal'
+  if (score >= 0.5) return 'yellow'
+  if (score > 0) return 'orange'
+  return 'gray'
+}
+
+export function HeatLegend() {
+  return (
+    <HStack gap={1} wrap="wrap" aria-label="Legend">
+      <Token label="All done" color="green" size="sm" />
+      <Token label="Target met" color="teal" size="sm" />
+      <Token label="Half or more" color="yellow" size="sm" />
+      <Token label="Started" color="orange" size="sm" />
+      <Token label="Missed" color="gray" size="sm" />
+      <Token label="Nothing scheduled" color="default" size="sm" />
+    </HStack>
+  )
+}

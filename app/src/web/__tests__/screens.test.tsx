@@ -356,3 +356,43 @@ describe('backup nudge', () => {
     expect(screen.getByText('Your data is only on this device')).toBeInTheDocument()
   })
 })
+
+describe('Calendar', () => {
+  const dayCell = (date: string) => screen.getByRole('button', { name: new RegExp(`^${formatDay(date)}`) })
+
+  it('shows the month, opens a past day and lets you fill it in', async () => {
+    const { addDays, weekdayOf } = await import('../../core/dates')
+    // A recent past weekday, so weekday routines are scheduled on it.
+    let past = addDays(today(), -1)
+    while (weekdayOf(past) === 0 || weekdayOf(past) === 6) past = addDays(past, -1)
+    await renderApp({ ...starterState(addDays(today(), -20)), startedOn: addDays(today(), -20) }, 'calendar')
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/^[A-Z][a-z]+ \d{4}$/)
+    expect(dayCell(today()).getAttribute('aria-label')).toContain('today, ')
+
+    fireEvent.click(dayCell(past))
+    expect(screen.getByRole('heading', { level: 2, name: formatDay(past) })).toBeInTheDocument()
+    const routines = screen.getByRole('group', { name: 'Routines' })
+    const box = within(routines).getAllByRole('checkbox')[0]!
+    fireEvent.click(box)
+    expect(latest.completions[past]).toHaveLength(1)
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Kept' })[0]!)
+    expect(Object.values(latest.ruleChecks[past] ?? {})).toEqual([true])
+    expect(dayCell(past).getAttribute('aria-label')).toMatch(/\d+% done/)
+  })
+
+  it('shows future days as a read-only plan and moves between months', async () => {
+    const { addDays } = await import('../../core/dates')
+    await renderApp(starterState(today()), 'calendar')
+    const title = screen.getByRole('heading', { level: 1 }).textContent
+    click('Next month')
+    expect(screen.getByRole('heading', { level: 1 }).textContent).not.toBe(title)
+    click('Go to today')
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(title)
+
+    const future = addDays(today(), 3)
+    fireEvent.click(dayCell(future))
+    expect(screen.queryByRole('button', { name: 'Log entry' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Kept' })).toBeNull()
+  })
+})

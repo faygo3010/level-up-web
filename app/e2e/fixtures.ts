@@ -4,6 +4,7 @@ export const STORAGE_KEY = 'levelup:v1'
 
 export const SCREENS = [
   { hash: 'today', tab: 'Today', heading: /^Good (morning|afternoon|evening)\.$/ },
+  { hash: 'calendar', tab: 'Calendar', heading: /^[A-Z][a-z]+ \d{4}$/ },
   { hash: 'areas', tab: 'Areas', heading: 'Areas' },
   { hash: 'journal', tab: 'Journal', heading: 'Journal' },
   { hash: 'insights', tab: 'Insights', heading: 'Insights' },

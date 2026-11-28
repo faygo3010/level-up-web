@@ -29,12 +29,13 @@ const iso = (d: string) => d as IsoDate
 
 const finite = (n: number | undefined): number | null => (n !== undefined && Number.isFinite(n) ? n : null)
 
-export function LogForm({ onClose }: { onClose: () => void }) {
+/** New journal entry. `date` pre-fills the day (e.g. from the calendar); future dates fall back to today. */
+export function LogForm({ onClose, date: initialDate }: { onClose: () => void; date?: string }) {
   const { dispatch, today } = useStore()
   const { active } = useAreas()
   const [kind, setKind] = useState<LogKind>('trade')
   const [areaId, setAreaId] = useState(() => defaultArea('trade', active))
-  const [date, setDate] = useState(today)
+  const [date, setDate] = useState(() => (initialDate && initialDate <= today ? initialDate : today))
   const [text, setText] = useState('')
   const [symbol, setSymbol] = useState('')
   const [side, setSide] = useState<'long' | 'short'>('long')

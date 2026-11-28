@@ -7,6 +7,7 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { Today } from './screens/Today'
 
 // Today is the landing screen; the rest load on first visit to keep startup light.
+const Calendar = lazy(() => import('./screens/Calendar').then((m) => ({ default: m.Calendar })))
 const Areas = lazy(() => import('./screens/Areas').then((m) => ({ default: m.Areas })))
 const Journal = lazy(() => import('./screens/Journal').then((m) => ({ default: m.Journal })))
 const Insights = lazy(() => import('./screens/Insights').then((m) => ({ default: m.Insights })))
@@ -15,6 +16,7 @@ const Settings = lazy(() => import('./screens/Settings').then((m) => ({ default:
 
 const TABS = [
   { key: 'today', label: 'Today', Screen: Today },
+  { key: 'calendar', label: 'Calendar', Screen: Calendar },
   { key: 'areas', label: 'Areas', Screen: Areas },
   { key: 'journal', label: 'Journal', Screen: Journal },
   { key: 'insights', label: 'Insights', Screen: Insights },

@@ -4,29 +4,16 @@ import { Grid } from '@astryxdesign/core/Grid'
 import { ProgressBar } from '@astryxdesign/core/ProgressBar'
 import { Text } from '@astryxdesign/core/Text'
 import { AspectRatio } from '@astryxdesign/core/AspectRatio'
-import { HStack } from '@astryxdesign/core/HStack'
-import { Token } from '@astryxdesign/core/Token'
 import { VStack } from '@astryxdesign/core/VStack'
 import { areaAdherence, bestStreak, currentStreak, scoreHistory } from '../../core/adherence'
 import { addDays, dateRange, formatDay, monthKey, periodRange } from '../../core/dates'
 import { goalProgress } from '../../core/progress'
 import type { AppState, DateKey } from '../../core/types'
 import { moneySummary, netByCategory, tradeStats, workoutSummary } from '../../core/stats'
-import { Empty, PageHeader, Section, Stat, money, pct, plural } from '../components/ui'
+import { Empty, HeatLegend, PageHeader, Section, Stat, heatTone, money, pct, plural } from '../components/ui'
 import { useAreas, useStore } from '../store'
 
 const HEATMAP_DAYS = 35
-
-type HeatTone = 'default' | 'gray' | 'orange' | 'yellow' | 'teal' | 'green'
-
-export function heatTone(score: number | null): HeatTone {
-  if (score === null) return 'default'
-  if (score >= 1) return 'green'
-  if (score >= 0.8) return 'teal'
-  if (score >= 0.5) return 'yellow'
-  if (score > 0) return 'orange'
-  return 'gray'
-}
 
 /** Below this many trades, comparing on-plan and off-plan results is mostly noise. */
 export const MIN_TRADES_TO_COMPARE = 10
@@ -107,14 +94,7 @@ export function Insights() {
             </AspectRatio>
           ))}
         </Grid>
-        <HStack gap={1} wrap="wrap" aria-label="Legend">
-          <Token label="All done" color="green" size="sm" />
-          <Token label="Target met" color="teal" size="sm" />
-          <Token label="Half or more" color="yellow" size="sm" />
-          <Token label="Started" color="orange" size="sm" />
-          <Token label="Missed" color="gray" size="sm" />
-          <Token label="Nothing scheduled" color="default" size="sm" />
-        </HStack>
+        <HeatLegend />
       </Section>
 
       <Section title="By area (7 days)">
