@@ -42,7 +42,16 @@ const type = (label: RegExp, value: string) => fireEvent.change(screen.getByLabe
 const click = async (name: string) => act(async () => fireEvent.click(screen.getByRole('button', { name })))
 
 describe('sign-in options', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  it('hides Apple until it is switched on', () => {
+    renderAccount(fakeAuth().client)
+    expect(screen.queryByRole('button', { name: 'Continue with Apple' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument()
+  })
+
   it('starts Apple and Google sign-in and returns to this app', async () => {
+    vi.stubEnv('VITE_APPLE_SIGNIN', 'true')
     const { auth, client } = fakeAuth()
     renderAccount(client)
     await click('Continue with Apple')

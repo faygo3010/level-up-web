@@ -74,6 +74,7 @@ export function LogForm({ onClose, date: initialDate }: { onClose: () => void; d
       case 'money': {
         const a = finite(amount)
         if (a === null || a === 0) return 'Enter an amount.'
+        if (flow === 'spent' && !base.text) return 'Say what the money was spent on.'
         const signed = flow === 'received' ? Math.abs(a) : -Math.abs(a)
         return { ...base, kind, money: { amount: signed, category: category.trim().toLowerCase().slice(0, 40) || 'other' } }
       }
@@ -129,18 +130,25 @@ export function LogForm({ onClose, date: initialDate }: { onClose: () => void; d
             <SegmentedControlItem value="received" label="Received" />
           </SegmentedControl>
           <NumberInput label="Amount" value={amount} onChange={setAmount} placeholder="25" />
-          <TextInput label="Category" value={category} onChange={setCategory} placeholder="food, rent, salary" />
+          <TextInput
+            label={flow === 'spent' ? 'What was it for?' : 'What was it?'}
+            isOptional={flow === 'received'}
+            value={text}
+            onChange={setText}
+            placeholder={flow === 'spent' ? 'Lunch with a client, gym membership' : 'Salary, refund, sold bike'}
+          />
+          <TextInput label="Category" isOptional value={category} onChange={setCategory} placeholder="food, rent, salary" />
         </>
       )}
 
-      <TextArea
+      {kind !== 'money' && <TextArea
         label={kind === 'note' ? 'Note' : 'Notes'}
         isOptional={kind !== 'note'}
         value={text}
         onChange={setText}
         rows={3}
         placeholder={kind === 'trade' ? 'Setup, emotions, what you would repeat' : ''}
-      />
+      />}
       <Selector label="Area" value={areaId} onChange={setAreaId} options={active.map((a) => ({ value: a.id, label: `${a.icon} ${a.name}` }))} />
       <DateInput label="Date" value={iso(date)} max={iso(today)} onChange={(v) => setDate(v || today)} />
     </FormShell>

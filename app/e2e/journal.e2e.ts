@@ -23,6 +23,10 @@ test.describe('Journal', () => {
     await app.sheet().getByRole('radio', { name: 'Spent' }).click()
     await app.sheet().getByLabel('Amount').fill('25')
     await app.sheet().getByLabel('Category').fill('Food')
+    // Spending needs a reason.
+    await app.sheet().getByRole('button', { name: 'Save' }).click()
+    await expect(app.sheet().getByRole('alert').filter({ hasText: 'Say what the money was spent on.' })).toBeVisible()
+    await app.sheet().getByLabel('What was it for?').fill('Lunch with a client')
     await app.save()
 
     await newEntry(app, 'Workout')
@@ -31,7 +35,7 @@ test.describe('Journal', () => {
     await app.save()
 
     const trade = page.getByRole('listitem').filter({ hasText: 'ES long' }).filter({ hasText: '-£120' })
-    const spend = page.getByRole('listitem').filter({ hasText: 'food' }).filter({ hasText: '-£25' })
+    const spend = page.getByRole('listitem').filter({ hasText: 'Lunch with a client' }).filter({ hasText: 'food' }).filter({ hasText: '-£25' })
     const run = page.getByRole('listitem').filter({ hasText: 'Run · 40 min' })
     await expect(trade).toBeVisible()
     await expect(trade.getByText(/Broke plan · Trading/)).toBeVisible()

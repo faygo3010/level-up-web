@@ -105,7 +105,10 @@ function PasswordSignIn() {
   )
 }
 
-function SignIn() {
+/** Apple sign-in needs a paid Apple Developer account, so it's off until VITE_APPLE_SIGNIN=true. */
+const appleEnabled = () => import.meta.env.VITE_APPLE_SIGNIN === 'true'
+
+export function SignIn({ intro = true }: { intro?: boolean }) {
   const sync = useSync()
   const [method, setMethod] = useState<'password' | 'code'>('password')
   const [error, setError] = useState('')
@@ -118,11 +121,13 @@ function SignIn() {
 
   return (
     <VStack gap={3}>
-      <Text color="secondary">
-        Sign in to back up your system, sync your phone and laptop, and connect your AI coach. Without an account, everything stays on this device.
-      </Text>
+      {intro && (
+        <Text color="secondary">
+          Sign in to back up your system, sync your phone and laptop, and connect your AI coach. Without an account, everything stays on this device.
+        </Text>
+      )}
       <VStack gap={2} hAlign="stretch">
-        <Button variant="secondary" label="Continue with Apple" onClick={() => void provider('apple')} />
+        {appleEnabled() && <Button variant="secondary" label="Continue with Apple" onClick={() => void provider('apple')} />}
         <Button variant="secondary" label="Continue with Google" onClick={() => void provider('google')} />
       </VStack>
       {error && <Banner status="error" title={error} />}

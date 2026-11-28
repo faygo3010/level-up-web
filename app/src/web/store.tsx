@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, useState, type ReactNode } from 'react'
 import { reducer, type Action } from '../core/reducer'
 import { loadState, saveState, type KeyValueStore } from '../core/storage'
-import { starterState } from '../core/defaults'
+import { emptyState } from '../core/defaults'
 import { today as todayKey } from '../core/dates'
 import type { AppState, DateKey } from '../core/types'
 
@@ -23,7 +23,8 @@ function browserStore(): KeyValueStore | null {
 }
 
 function initialState(store: KeyValueStore | null): AppState {
-  return (store && loadState(store)) ?? starterState(todayKey())
+  // A new device starts empty; first-run setup (or the account's copy) fills it in.
+  return (store && loadState(store)) ?? { ...emptyState(), startedOn: todayKey() }
 }
 
 /** Re-render when the calendar day rolls over so "today" never goes stale. */

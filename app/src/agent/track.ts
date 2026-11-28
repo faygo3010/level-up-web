@@ -97,7 +97,7 @@ export const trackTools = [
     access: 'write',
     input: {
       kind: z.enum(['trade', 'workout', 'money', 'note']),
-      text: z.string().trim().max(2000).optional().describe('Notes. Required for kind "note".'),
+      text: z.string().trim().max(2000).optional().describe('Notes. Required for kind "note". For money, what it was for (e.g. "lunch with client").'),
       area: z.string().trim().max(200).optional().describe('Area id or name. Defaults to the matching area (Trading, Fitness, Finance).'),
       date: dateArg,
       symbol: z.string().trim().max(20).optional(),

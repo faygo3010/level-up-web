@@ -1,8 +1,11 @@
 import { test as base, expect, type Locator, type Page } from '@playwright/test'
+import { today } from '../src/core/dates'
+import { starterState } from '../src/core/defaults'
 
 export const STORAGE_KEY = 'levelup:v1'
 
 export const SCREENS = [
+  { hash: 'home', tab: 'Home', heading: /^Good (morning|afternoon|evening)\.$/ },
   { hash: 'today', tab: 'Today', heading: /^Good (morning|afternoon|evening)\.$/ },
   { hash: 'calendar', tab: 'Calendar', heading: /^[A-Z][a-z]+ \d{4}$/ },
   { hash: 'areas', tab: 'Areas', heading: 'Areas' },
@@ -12,6 +15,11 @@ export const SCREENS = [
 ] as const
 
 export type ScreenHash = (typeof SCREENS)[number]['hash']
+
+interface Options {
+  /** Start with the starter system already set up (true), or as a brand-new user (false). */
+  seeded: boolean
+}
 
 interface Fixtures {
   /** Console errors and uncaught exceptions seen during the test. Asserted empty after every test. */
@@ -55,7 +63,8 @@ export class AppDriver {
   }
 }
 
-export const test = base.extend<Fixtures>({
+export const test = base.extend<Fixtures & Options>({
+  seeded: [true, { option: true }],
   consoleErrors: async ({ page }, use) => {
     const errors: string[] = []
     page.on('console', (msg) => {
@@ -65,8 +74,14 @@ export const test = base.extend<Fixtures>({
     await use(errors)
     expect(errors, 'no console errors or uncaught exceptions').toEqual([])
   },
-  app: async ({ page, consoleErrors }, use) => {
+  app: async ({ page, consoleErrors, seeded }, use) => {
     void consoleErrors // ensure the console listener is attached for every test that drives the app
+    if (seeded) {
+      // Only when empty, so reloads within a test keep what the test saved.
+      await page.addInitScript(([key, value]) => {
+        if (!localStorage.getItem(key)) localStorage.setItem(key, value)
+      }, [STORAGE_KEY, JSON.stringify(starterState(today()))] as const)
+    }
     await use(new AppDriver(page))
   },
 })

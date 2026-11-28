@@ -171,7 +171,8 @@ export function Settings() {
             variant="destructive"
             label="Delete all data"
             confirmLabel="Tap again to delete everything"
-            onConfirm={() => replace({ ...emptyState(), startedOn: today }, 'All data cleared.')}
+            // Stays in the app (rather than back to setup) so a backup can be restored straight away.
+            onConfirm={() => replace({ ...emptyState(), startedOn: today, settings: { ...emptyState().settings, onboardedAt: Date.now() } }, 'All data cleared.')}
           />
         </VStack>
       </Section>

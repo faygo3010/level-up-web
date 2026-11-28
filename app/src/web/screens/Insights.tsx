@@ -1,17 +1,21 @@
 import { Banner } from '@astryxdesign/core/Banner'
 import { Card } from '@astryxdesign/core/Card'
 import { Grid } from '@astryxdesign/core/Grid'
+import { List, ListItem } from '@astryxdesign/core/List'
 import { ProgressBar } from '@astryxdesign/core/ProgressBar'
 import { Text } from '@astryxdesign/core/Text'
 import { AspectRatio } from '@astryxdesign/core/AspectRatio'
 import { VStack } from '@astryxdesign/core/VStack'
 import { areaAdherence, bestStreak, currentStreak, scoreHistory } from '../../core/adherence'
-import { addDays, dateRange, formatDay, monthKey, periodRange } from '../../core/dates'
-import { goalProgress } from '../../core/progress'
-import type { AppState, DateKey } from '../../core/types'
-import { moneySummary, netByCategory, tradeStats, workoutSummary } from '../../core/stats'
+import { addDays, formatDay, monthKey, periodRange } from '../../core/dates'
+import type { AppState } from '../../core/types'
+import { moneySummary, tradeStats, workoutSummary } from '../../core/stats'
+import { weekSummary } from '../../core/summary'
+
+export { weekSummary }
 import { Empty, HeatLegend, PageHeader, Section, Stat, heatTone, money, pct, plural } from '../components/ui'
 import { useAreas, useStore } from '../store'
+import { amountOf, headline } from './Journal'
 
 const HEATMAP_DAYS = 35
 
@@ -32,21 +36,12 @@ export function tradingVerdict(
   return `${off}${on}${note}`
 }
 
-/** The numbers behind "how is my week going?", in one place. */
-export function weekSummary(state: AppState, today: DateKey) {
-  const start = addDays(today, -6)
-  const avg = (end: DateKey) => {
-    const s = scoreHistory(state, end, 7).map((h) => h.score).filter((x): x is number => x !== null)
-    return s.length ? s.reduce((a, b) => a + b, 0) / s.length : null
-  }
-  const days = dateRange(start, today)
-  const rulesBroken = days.reduce((n, d) => n + Object.values(state.ruleChecks[d] ?? {}).filter((k) => k === false).length, 0)
-  const spent = netByCategory(state.logs.flatMap((l) => (l.kind === 'money' && l.date >= start && l.date <= today ? [l.money] : []))).spending
-  const budgetGoal = state.goals.find((g) => !g.archived && g.direction === 'atMost' && g.tracks === 'spending')
-  const budget = budgetGoal && budgetGoal.target > 0
-    ? { title: budgetGoal.title, used: goalProgress(budgetGoal, state.goalEntries, today, state.settings.weekStartsOn, state.logs).current / budgetGoal.target }
-    : null
-  return { adherence: avg(today), previous: avg(addDays(today, -7)), rulesBroken, trades: tradeStats(state.logs, start, today), spent, budget }
+/** The largest money-out entries in a month, with their reasons. */
+export function biggestSpends(state: AppState, month: string, limit = 5) {
+  return state.logs
+    .filter((l) => l.kind === 'money' && l.money.amount < 0 && monthKey(l.date) === month)
+    .sort((a, b) => (a.kind === 'money' && b.kind === 'money' ? a.money.amount - b.money.amount : 0))
+    .slice(0, limit)
 }
 
 export function Insights() {
@@ -63,6 +58,7 @@ export function Insights() {
   const cash = moneySummary(state.logs, monthKey(today))
   const workouts = workoutSummary(state.logs, month.start, month.end)
   const week = weekSummary(state, today)
+  const bigSpends = biggestSpends(state, monthKey(today))
 
   return (
     <VStack gap={6}>
@@ -161,6 +157,25 @@ export function Insights() {
                 variant="neutral"
               />
             ))}
+            {bigSpends.length > 0 && (
+              <VStack gap={1}>
+                <Text type="label">Biggest spends</Text>
+                <List hasDividers>
+                  {bigSpends.map((l) => (
+                    <ListItem
+                      key={l.id}
+                      label={headline(l)}
+                      description={`${formatDay(l.date)} · ${l.kind === 'money' ? l.money.category : ''}`}
+                      endContent={
+                        <Text weight="semibold" hasTabularNumbers>
+                          {amountOf(l, currency)?.text}
+                        </Text>
+                      }
+                    />
+                  ))}
+                </List>
+              </VStack>
+            )}
           </VStack>
         )}
       </Section>

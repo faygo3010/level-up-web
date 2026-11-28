@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
-import { starterState } from '../../core/defaults'
+import { emptyState, starterState } from '../../core/defaults'
 import { formatDay, today } from '../../core/dates'
 import { serializeState } from '../../core/storage'
 import type { AppState } from '../../core/types'
@@ -14,7 +14,7 @@ function Spy() {
 }
 
 /** Renders the app and waits for the (lazily loaded) screen's heading. */
-async function renderApp(initial: AppState = starterState(today()), hash = '') {
+async function renderApp(initial: AppState = starterState(today()), hash = '#today') {
   window.location.hash = hash
   const view = render(
     <StoreProvider initial={initial}>
@@ -207,7 +207,7 @@ describe('Insights', () => {
         logs: [
           { ...entry, id: 't1', kind: 'trade', trade: { symbol: 'ES', side: 'long', pnl: 300, followedPlan: true } },
           { ...entry, id: 't2', kind: 'trade', trade: { symbol: 'NQ', side: 'short', pnl: -200, followedPlan: false } },
-          { ...entry, id: 'm1', areaId: 'finance', kind: 'money', money: { amount: -40, category: 'food' } },
+          { ...entry, id: 'm1', areaId: 'finance', kind: 'money', text: 'Lunch with a client', money: { amount: -40, category: 'food' } },
           { ...entry, id: 'w1', areaId: 'fitness', kind: 'workout', workout: { activity: 'Run', minutes: 30 } },
         ],
       },
@@ -217,6 +217,8 @@ describe('Insights', () => {
     expect(screen.getByText('1W · 1L · 0 BE')).toBeInTheDocument()
     expect(screen.getByText('£50')).toBeInTheDocument() // expectancy per trade
     expect(screen.getByText('food')).toBeInTheDocument()
+    // Biggest spends show the reason, not just the category.
+    expect(screen.getByText('Lunch with a client')).toBeInTheDocument()
     expect(screen.getByRole('list', { name: 'Daily adherence, oldest first' }).children).toHaveLength(35)
     expect(screen.getByRole('listitem', { name: new RegExp(`${formatDay(today())}: `) })).toBeInTheDocument()
     // This week: logged spending also feeds the linked budget.
@@ -246,7 +248,8 @@ describe('Settings', () => {
   })
 
   it('restores a backup only after confirming, and rejects bad files', async () => {
-    await renderApp({ ...starterState(today()), areas: [] }, '#prefs')
+    const base = starterState(today())
+    await renderApp({ ...base, areas: [], settings: { ...base.settings, onboardedAt: 1 } }, '#prefs')
     const upload = async (contents: string) =>
       act(async () => {
         fireEvent.change(fileInput(), { target: { files: [new File([contents], 'backup.json', { type: 'application/json' })] } })
@@ -263,15 +266,18 @@ describe('Settings', () => {
     expect(screen.getByText('Backup restored.')).toBeInTheDocument()
   })
 
-  it('deletes everything and reloads the starter system behind two taps', async () => {
-    await renderApp(undefined, '#prefs')
+  it('reloads the starter system and deletes everything behind two taps, staying in Settings', async () => {
+    await renderApp({ ...starterState(today()), areas: starterState(today()).areas.slice(0, 1) }, '#prefs')
+    click('Load starter system')
+    expect(latest.areas).toHaveLength(1)
+    click('Tap again: replaces everything')
+    expect(latest.areas).toHaveLength(4)
     click('Delete all data')
     expect(latest.areas).toHaveLength(4)
     click('Tap again to delete everything')
     expect(latest.areas).toHaveLength(0)
-    click('Load starter system')
-    click('Tap again: replaces everything')
-    expect(latest.areas).toHaveLength(4)
+    // Still in the app, so a backup can be restored straight away.
+    expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument()
   })
 
   it('exports and copies backups', async () => {
@@ -394,5 +400,58 @@ describe('Calendar', () => {
     fireEvent.click(dayCell(future))
     expect(screen.queryByRole('button', { name: 'Log entry' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Kept' })).toBeNull()
+  })
+})
+
+describe('First run', () => {
+  const fresh = (): AppState => ({ ...emptyState(), startedOn: today() })
+  const next = () => click('Next')
+  const checkbox = (name: string | RegExp) => screen.getByRole('checkbox', { name })
+
+  it('welcomes a new user, sets up their system from their answers, then opens the dashboard', async () => {
+    await renderApp(fresh(), '')
+    expect(screen.queryByRole('navigation', { name: 'Main' })).toBeNull()
+    click('Get started')
+
+    type(/What should we call you/, 'Sam')
+    next()
+    // Must pick at least one area.
+    next()
+    expect(screen.getByText('Pick at least one area to work on.')).toBeInTheDocument()
+    fireEvent.click(checkbox(/Fitness/))
+    fireEvent.click(checkbox(/Finance/))
+    type(/^Add your own/, 'Side business')
+    click('Add area')
+    next()
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Choose your goals' })).toBeInTheDocument()
+    fireEvent.click(checkbox('Active minutes'))
+    next()
+    fireEvent.click(checkbox('In bed by 11pm'))
+    click('Finish setup')
+
+    expect(await screen.findByRole('heading', { level: 1, name: /, Sam\.$/ })).toBeInTheDocument()
+    expect(window.location.hash).toBe('#home')
+    expect(latest.settings).toMatchObject({ name: 'Sam' })
+    expect(latest.areas.map((a) => a.name)).toEqual(['Fitness', 'Finance', 'Side business'])
+    expect(latest.goals.map((g) => g.id)).toEqual(['g-train', 'g-spend', 'g-save'])
+    expect(latest.routines.map((r) => r.id)).not.toContain('fit-sleep')
+    expect(screen.getByRole('button', { name: "Open today's checklist" })).toBeInTheDocument()
+  })
+
+  it('can skip straight to an example system', async () => {
+    await renderApp(fresh(), '')
+    click('Get started')
+    click('Skip and use an example system')
+    expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
+    expect(latest.areas.map((a) => a.id)).toEqual(['work', 'fitness', 'trading', 'finance'])
+  })
+
+  it('sends returning users straight to their dashboard', async () => {
+    const { greeting } = await import('../screens/Home')
+    await renderApp({ ...starterState(today()), settings: { ...starterState(today()).settings, name: 'Jo' } }, '')
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(greeting(new Date().getHours(), 'Jo'))
+    expect(screen.getByRole('heading', { name: 'Goals' })).toBeInTheDocument()
+    expect(screen.getByRole('list', { name: 'Last 7 days, oldest first' }).children).toHaveLength(7)
   })
 })

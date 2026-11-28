@@ -17,7 +17,7 @@ import { LogForm } from '../components/LogForm'
 import { RuleCheck } from '../components/RuleCheck'
 import { AreaTag, Empty, HeatLegend, PageHeader, Section, heatTone, money, pct, plural } from '../components/ui'
 import { useAreas, useStore } from '../store'
-import { amountOf, headline } from './Journal'
+import { amountOf, details, headline } from './Journal'
 
 /** What a screen reader hears for one day cell. */
 export function cellLabel(date: DateKey, score: number | null, entries: number, isToday: boolean, isSelected: boolean): string {
@@ -175,7 +175,7 @@ export function Calendar() {
                 <ListItem
                   key={l.id}
                   label={headline(l)}
-                  description={[byId.get(l.areaId)?.name, l.text].filter(Boolean).join(' · ') || undefined}
+                  description={details(l, byId.get(l.areaId)?.name) || undefined}
                   endContent={
                     amount && (
                       <Text weight="semibold" hasTabularNumbers color={amount.positive ? 'primary' : 'accent'}>

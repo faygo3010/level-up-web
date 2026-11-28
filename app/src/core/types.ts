@@ -122,6 +122,10 @@ export interface Settings {
   readonly timeZone?: string
   /** When the user last exported a backup (ms since epoch). */
   readonly lastBackupAt?: number
+  /** What the app calls you, e.g. on the dashboard greeting. */
+  readonly name?: string
+  /** When first-run setup was finished (ms since epoch). */
+  readonly onboardedAt?: number
 }
 
 export interface AppState {

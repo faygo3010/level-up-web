@@ -81,6 +81,8 @@ const settings = z.object({
   weekStartsOn: z.union([z.literal(0), z.literal(1)]),
   timeZone: z.string().max(64).optional(),
   lastBackupAt: z.number().optional(),
+  name: z.string().trim().max(60).optional(),
+  onboardedAt: z.number().optional(),
 })
 
 export const appStateSchema = z.object({
