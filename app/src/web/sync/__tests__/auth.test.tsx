@@ -113,3 +113,20 @@ describe('sign-in options', () => {
     expect(auth.signInWithOtp).toHaveBeenCalled()
   })
 })
+
+describe('setting a password after Google sign-in', () => {
+  it('saves a password for a signed-in account so AI apps can sign in', async () => {
+    const session = { user: { id: 'u1', email: 'me@example.com' }, access_token: 't' }
+    const { auth, client } = fakeAuth({ getSession: vi.fn(async () => ({ data: { session } })) })
+    renderAccount(client)
+    await screen.findByRole('button', { name: 'Set or change password' })
+    await click('Set or change password')
+    type(/^New password/, 'short')
+    await click('Save password')
+    expect(screen.getByText('Use at least 8 characters.')).toBeInTheDocument()
+    type(/^New password/, 'longenough1')
+    await click('Save password')
+    expect(auth.updateUser).toHaveBeenCalledWith({ password: 'longenough1' })
+    expect(screen.getByText('Password saved.')).toBeInTheDocument()
+  })
+})

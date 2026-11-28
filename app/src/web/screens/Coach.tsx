@@ -17,7 +17,7 @@ export const CONNECT_STEPS: { app: string; steps: string[] }[] = [
     steps: [
       'Open Claude (web, desktop or mobile) and go to Settings → Connectors.',
       'Choose "Add custom connector" and paste the Level Up URL below.',
-      'Sign in with your Level Up account and tap Allow.',
+      'Sign in with your Level Up email and password, then tap Allow.',
       'Ask: "What\'s on my Level Up today?"',
     ],
   },
@@ -26,7 +26,7 @@ export const CONNECT_STEPS: { app: string; steps: string[] }[] = [
     steps: [
       'Open ChatGPT and go to Settings → Connectors (developer mode may need switching on).',
       'Create a connector and paste the Level Up URL below.',
-      'Sign in with your Level Up account and tap Allow.',
+      'Sign in with your Level Up email and password, then tap Allow.',
       'Ask: "Log a trade: NQ short, +£220, followed my plan."',
     ],
   },
@@ -67,6 +67,10 @@ export function Coach() {
           </List>
         </Section>
       ))}
+
+      <Text color="secondary">
+        Signed up with Google? Your AI app asks for an email and password, so first add one in Settings under "Set or change password".
+      </Text>
 
       {CONNECTOR_URL && signedIn && (
         <Section title="Your connection">

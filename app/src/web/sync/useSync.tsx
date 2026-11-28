@@ -247,7 +247,7 @@ export function SyncProvider({ children, supabase = getSupabase() }: { children:
         if (!password.success) return password.error.issues[0]?.message ?? 'Choose a stronger password.'
         if (!supabase) return 'Sync is not set up on this build.'
         const { error: e } = await supabase.auth.updateUser({ password: password.data })
-        if (e) return "Couldn't update the password. Open the reset link again."
+        if (e) return recovering ? "Couldn't update the password. Open the reset link again." : "Couldn't save the password. Sign out, sign in again, then retry."
         endRecovery()
         return null
       },

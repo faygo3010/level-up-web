@@ -170,6 +170,46 @@ function NewPassword() {
   )
 }
 
+/**
+ * Lets people who signed up with Google (or an email code) add a password, which
+ * is what connected AI apps ask for when they sign in to Level Up.
+ */
+function SetPassword() {
+  const sync = useSync()
+  const [open, setOpen] = useState(false)
+  const [password, setPassword] = useState('')
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
+  const [busy, setBusy] = useState(false)
+  if (!open) return <Button variant="ghost" label="Set or change password" onClick={() => setOpen(true)} />
+  return (
+    <VStack gap={2}>
+      <TextInput
+        label="New password"
+        type="password"
+        value={password}
+        onChange={setPassword}
+        description="At least 8 characters. Use it with your email to sign in to Level Up from Claude or ChatGPT."
+      />
+      {message && <Banner status={message.ok ? 'success' : 'error'} title={message.text} />}
+      <HStack justify="end" gap={2}>
+        <Button variant="ghost" label="Cancel" onClick={() => setOpen(false)} />
+        <Button
+          variant="primary"
+          label="Save password"
+          isLoading={busy}
+          onClick={async () => {
+            setBusy(true)
+            const err = await sync.updatePassword(password)
+            setBusy(false)
+            setMessage(err ? { ok: false, text: err } : { ok: true, text: 'Password saved.' })
+            if (!err) setPassword('')
+          }}
+        />
+      </HStack>
+    </VStack>
+  )
+}
+
 function AccountCard() {
   const sync = useSync()
 
@@ -199,6 +239,7 @@ function AccountCard() {
         </Text>
         {sync.error && <Banner status="error" title={sync.error} />}
         <Button variant="secondary" label="Sync now" onClick={sync.syncNow} isDisabled={sync.status === 'syncing'} />
+        <SetPassword />
         <Button variant="ghost" label="Sign out (keeps a copy on this device)" onClick={() => void sync.signOut()} />
       </VStack>
     </Section>
